@@ -16,7 +16,8 @@ decoder_utf8(Decode *s)
     u16 *out  = s->out;
     u16 *out_ = s->out_-2;
     // There has to be at least 2 u16s available.
-    hale_assert_message(out <= out_, "Insufficient output. At least 2 u16 are required.");
+    hale_assert_message(out <= out_,
+                        "Insufficient output. At least 2 u16 are required.");
 
     CodecReturn ret = CodecReturn::Success;
     u32 utf8_state = s->utf8.state;
@@ -71,7 +72,8 @@ encoder_utf8(Encode *s)
 
     u8  *out  = s->out;
     u8  *out_ = s->out_-6;
-    hale_assert_message(out <= out_, "Insufficient output. At least 6 u8 are required.");
+    hale_assert_message(out <= out_,
+                        "Insufficient output. At least 6 u8 are required.");
 
     CodecReturn ret = CodecReturn::Success;
     u32 hale_state = s->hale.state;

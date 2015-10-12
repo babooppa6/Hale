@@ -5,3 +5,4 @@ src/data/hale.ilk
 *.hpp
 *.exp
 *.ilk
+*.autosave
