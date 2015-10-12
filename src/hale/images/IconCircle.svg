@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg width="16px" height="16px" viewBox="0 0 16 16" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:sketch="http://www.bohemiancoding.com/sketch/ns">
+    <!-- Generator: Sketch 3.3.3 (12081) - http://www.bohemiancoding.com/sketch -->
+    <title>IconCircle</title>
+    <desc>Created with Sketch.</desc>
+    <defs></defs>
+    <g id="Page-1" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd" sketch:type="MSPage">
+        <g id="IconCircle" sketch:type="MSArtboardGroup" fill="#000000">
+            <path d="M8,12.8 C5.38592593,12.8 3.25925926,10.64675 3.25925926,8 C3.25925926,5.35325 5.38592593,3.2 8,3.2 C10.6140741,3.2 12.7407407,5.35325 12.7407407,8 C12.7407407,10.64675 10.6140741,12.8 8,12.8 L8,12.8 Z M8,5.6 C6.69293827,5.6 5.62962963,6.67665 5.62962963,8 C5.62962963,9.3234 6.69293827,10.4 8,10.4 C9.30706173,10.4 10.3703704,9.3234 10.3703704,8 C10.3703704,6.67665 9.30706173,5.6 8,5.6 L8,5.6 Z" id="Fill-2" sketch:type="MSShapeGroup"></path>
+        </g>
+    </g>
+</svg>

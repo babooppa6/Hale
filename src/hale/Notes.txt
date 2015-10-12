@@ -1,0 +1,53 @@
+BUGS
+- Vertical anchor is not updated when the text is being inserted.
+
+NEXT TASK
+
+CRITICAL
+- Make the editor working first, so you can use it as soon as possible.
+- Do the fancy stuff later. (Lua, Console, etc.)
+
+NEXT BUG
+- Removing lines above the viewport.
+
+TRICKS
+- Pass -platform windows:fontengine=freetype to application to render through freetype.
+
+BUGS
+- Tokens shift to -1 line when lines are inserted.
+
+TODO
+
+- Use deque where possible.
+- Avoid using indexes in the containers.
+    - Try to calculate the index from the pointer/iterator.
+    - How does the deque calculate the distance?
+    - DocumentBlock::Blocks
+- Implement a document block object to store information for the lines.
+    - Includes indentation?
+    - Includes parser information.
+        - Stacks (front & back)
+        - Scopes
+    - Should also contain end indexes?
+    - Include decorators (errors, breakpoints, etc.)
+        - Wouldn't it be better to store these in a map?
+
+- Animations in editor
+    - Change in height (add or remove).
+    - Change in viewport.
+    - Each tick when the height is changed, re-layout the lines below.
+    - Each tick only use first/last block in the visible array to see what needs to be added/removed.
+
+IDEAS
+- Ctrl+` to switch to code-command mode in which the current operation is converted to code. Typically a search.
+
+- Ctrl+Tab to switch through history.
+- Ctrl+~ to switch with filter.
+
+- All commands are specified using javascript functions.
+- Each command has a name and a scope.
+
+- Terminal
+    - https://github.com/webBoxio/atom-term2
+    - https://github.com/chjj/pty.js/blob/master/src/win/pty.cc
+    - https://github.com/peters/winpty
