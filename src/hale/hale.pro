@@ -4,7 +4,7 @@ TARGET = hale
 TEMPLATE = app
 
 CONFIG += c++11
-CONFIG += console
+# CONFIG += console
 
 DEFINES += "ONIG_EXTERN=extern"
 DEFINES += __PROJECT__=\\\"$$PWD/\\\"
@@ -12,7 +12,9 @@ DEFINES += __WPROJECT__=L\\\"$$PWD/\\\"
 win32: RC_FILE = $${PWD}/app.rc
 
 unix: {
-    QMAKE_CXXFLAGS_WARN_ON += -Wno-reorder
+    QMAKE_CXXF
+
+LAGS_WARN_ON += -Wno-reorder
 
 # TODO:
 #APP_QML_FILES.files = path/to/file1.qml path/to/file2.qml

@@ -17,6 +17,9 @@
 #include "hale_test_document.cpp"
 #include "hale_test_encoding.cpp"
 
+#define TEST 1
+
+#if TEST
 int main(int argc, char *argv[])
 {
     hale_unused(argc);
@@ -27,8 +30,7 @@ int main(int argc, char *argv[])
     // hale::test_document();
     hale::test_encoding();
 }
-
-#if 0
+#else
 int main(int argc, char *argv[])
 {
     onig_init();

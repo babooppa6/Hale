@@ -276,13 +276,55 @@ test_utf8_decoder_large_buffers()
     close(&out);
 }
 
+//
+// Encoding
+//
+
+void
+test_utf8_encoder_tiny_buffers()
+{
+    {   u16 source[] = {0x70,  0x700, 0xF000, 0x1F000, 0x3F00000, 0x7F000000, 0x80000001};
+        u8  destination[] = {0, 0, 0, 0, 0, 0, 0, 0,
+                             0, 0, 0, 0, 0, 0, 0, 0,
+                             0, 0, 0, 0, 0, 0, 0, 0,
+                             0, 0, 0, 0, 0, 0, 0, 0,
+                             0, 0, 0, 0, 0, 0, 0, 0};
+
+        Encode e;
+        e.in = source;
+        e.in_ = source + hale_array_count(source);
+        e.out = destination;
+        e.out_ = destination + hale_array_count(destination);
+        e.hale = {};
+
+        encoder_utf8(&e);
+        hale_test(destination[0] == 0x70);
+    }
+
+    {   u16 source[] = {0xd800, 0xdf48};
+        // 0xF0, 0x90, 0x8D, 0x88
+        u8  destination[] = {0, 0, 0, 0, 0, 0, 0, 0};
+
+        Encode e;
+        e.in = source;
+        e.in_ = source + hale_array_count(source);
+        e.out = destination;
+        e.out_ = destination + hale_array_count(destination);
+        e.hale = {};
+
+        encoder_utf8(&e);
+    }
+}
+
 void
 test_encoding()
 {
-    test_utf8_decoder_tiny_buffers();
+    test_utf8_encoder_tiny_buffers();
+
+    // test_utf8_decoder_tiny_buffers();
     // test_utf8_decoder_new_lines();
-    test_utf8_decoder_large_buffers();
-    test_utf8_decoder_speed();
+    // test_utf8_decoder_large_buffers();
+    // test_utf8_decoder_speed();
 }
 
 } // namespace hale

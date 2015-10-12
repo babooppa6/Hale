@@ -70,7 +70,8 @@ encoder_utf8(Encode *s)
     hale_assert(in <= in_);
 
     u8  *out  = s->out;
-    u8  *out_ = s->out_-2;
+    u8  *out_ = s->out_-6;
+    hale_assert_message(out <= out_, "Insufficient output. At least 6 u8 are required.");
 
     CodecReturn ret = CodecReturn::Success;
     u32 hale_state = s->hale.state;
@@ -89,10 +90,21 @@ encoder_utf8(Encode *s)
             continue;
         }
 
-        // out = utf32_utf8();
+        out = utf32_utf8(out, hale_codepoint);
+
+        if (out > out_) {
+            ret = CodecReturn::OutputUsed;
+            break;
+        }
     }
 
-    return CodecReturn::Error;
+    s->in = in;
+    s->out = out;
+    s->hale.state = hale_state;
+    s->hale.codepoint = hale_codepoint;
+    // s->hale.state = hale_state;
+
+    return ret;
 }
 
 }
