@@ -457,7 +457,7 @@ fixed_gap_arena_init(FixedGapArena *arena, memi count)
     vector_init(&arena->buffers);
     allocate_buffers(arena, 0, 1);
 
-    arena->length = 0;
+    arena->size = 0;
 }
 
 void fixed_gap_arena_release(FixedGapArena *arena)
@@ -653,7 +653,7 @@ fixed_gap_arena_insert(FixedGapArena *arena,
     if (size == 0) {
         return;
     }
-    hale_assert(offset <= arena->length);
+    hale_assert(offset <= arena->size);
     hale_assert_debug(vector_count(arena->buffers));
 
     Buf *it0 = find_buf_GTE(arena,
@@ -672,7 +672,7 @@ fixed_gap_arena_insert(FixedGapArena *arena,
         insert_non_crit_branch(arena, offset, data, size, it0);
     }
 
-    arena->length += size;
+    arena->size += size;
 }
 
 hale_internal
@@ -694,8 +694,8 @@ fixed_gap_arena_remove(FixedGapArena *arena, memi offset, memi size)
         return;
     }
 
-    hale_assert_input((offset + size) <= arena->length);
-    hale_assert_input(offset <= arena->length);
+    hale_assert_input((offset + size) <= arena->size);
+    hale_assert_input(offset <= arena->size);
 
     Buf *it0 = vector_begin(&arena->buffers);
     Buf *end = vector_end(&arena->buffers);
@@ -757,15 +757,15 @@ fixed_gap_arena_remove(FixedGapArena *arena, memi offset, memi size)
         }
     }
 
-    arena->length -= size;
+    arena->size -= size;
 }
 
 ch8 *
 fixed_gap_arena_text(FixedGapArena *arena, memi offset, memi size, ch8 *out)
 {
-    hale_assert(offset <= arena->length);
-    hale_assert(size <= arena->length);
-    hale_assert(offset + size <= arena->length);
+    hale_assert(offset <= arena->size);
+    hale_assert(size <= arena->size);
+    hale_assert(offset + size <= arena->size);
     if (size == 0) {
         return out;
     }

@@ -192,9 +192,11 @@ SOURCES += \
     hale_platform_darwin.cpp \
     hale_platform_win32.cpp \
     hale_encoding.cpp \
-    hale_encoding_decode_helpers.cpp \
     hale_test_encoding.cpp \
-    hale_encoding_encode_helpers.cpp
+    hale_test_encoding_referential.cpp \
+    hale_encoding_utf8.cpp \
+    hale_encoding_hale.cpp \
+    hale_encoding_utf16.cpp
 
 RESOURCES += \
     app.qrc

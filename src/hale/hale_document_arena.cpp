@@ -1,5 +1,6 @@
 #include "hale_document.h"
 #include "hale_stream.h"
+#include "hale_encoding.h"
 
 namespace hale {
 
@@ -24,20 +25,51 @@ namespace hale {
 err
 document_load(Document *document, ch *path)
 {
-//    File f;
-//    if (open(&f, path, File::Read))
-//    {
-//        DocumentEdit edit;
-//        document_edit(&edit, document, NULL);
+    File f;
+    if (open(&f, path, File::Read))
+    {
+        u8  b_in[4096];
+        u8 *in  = b_in;
+        u8 *in_;
 
-//        ReadText r;
-//        while (read(&f, &r)) {
-//            document_append(&edit, r.text, r.length);
+        u16 b_out[4096];
+        u16 *out  = b_out;
+        u16 *out_ = out + hale_array_count(b_out);
+
+        in_ = b_in + read(&f, b_in, hale_array_count(b_in));
+
+//        if (!equal(b_in, b_in + 3, (const u8*)"\xEF\xBB\xBF")) {
+//            hale_panic("Unsupported encoding. As a lazy programmer I only support UTF-8. Thank you.");
 //        }
-//        close(&s);
 
-//        return 1;
-//    }
+        DocumentEdit edit;
+        document_edit(&edit, document, NULL);
+
+        CodecState s = {};
+        CodecReturn r;
+
+        for (;;)
+        {
+            r = codec<Encoding::UTF8, Encoding::Hale>(&in, in_, &out, out_, &s);
+
+            if (in == in_) {
+                in  = b_in;
+                in_ = in + read(&f, b_in, hale_array_count(b_in));
+                if (in_ == in) {
+                    break;
+                }
+            }
+
+            if (r == CodecReturn::OutputUsed)
+            {
+                document_append(&edit, (ch*)b_out, out - b_out);
+                out = b_out;
+            }
+        }
+        close(&f);
+
+        return 1;
+    }
 
     return 0;
 }

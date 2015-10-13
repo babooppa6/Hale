@@ -121,6 +121,25 @@ HALE_PLATFORM_WRITE_FILE(win32_write_file)
     return wrote;
 }
 
+HALE_PLATFORM_SEEK_FILE(win32_seek_file)
+{
+    LARGE_INTEGER li;
+
+    li.QuadPart = pos;
+    li.LowPart = SetFilePointer(file->handle,
+                                li.LowPart,
+                                &li.HighPart,
+                                FILE_BEGIN);
+
+    if (li.LowPart == INVALID_SET_FILE_POINTER &&
+        GetLastError() != NO_ERROR)
+    {
+        li.QuadPart = -1;
+    }
+
+    return li.QuadPart;
+}
+
 //
 //
 //
@@ -185,6 +204,12 @@ Platform::Platform()
 {
     QueryPerformanceFrequency((LARGE_INTEGER*)&win32_perf_counter_frequency);
 
+    SYSTEM_INFO si;
+    GetSystemInfo(&si);
+    page_size = si.dwPageSize;
+    page_shift = log(page_size) / log(2);
+    page_mask = si.dwPageSize - 1;
+
     allocate_memory = win32_allocate_memory;
     deallocate_memory = win32_deallocate_memory;
     copy_memory = win32_copy_memory;
@@ -195,18 +220,13 @@ Platform::Platform()
     close_file = win32_close_file;
     read_file = win32_read_file;
     write_file = win32_write_file;
+    seek_file = win32_seek_file;
 
     // read_text_file = win32_read_text_file;
     debug_print_0_8 = win32_debug_print_0_8;
     debug_print_N_8 = win32_debug_print_N_8;
     debug_print_0_16 = win32_debug_print_0_16;
     debug_print_N_16 = win32_debug_print_N_16;
-
-    SYSTEM_INFO si;
-    GetSystemInfo(&si);
-    page_size = si.dwPageSize;
-    page_shift = log(page_size) / log(2);
-    page_mask = si.dwPageSize - 1;
 }
 
 } // namespace hale

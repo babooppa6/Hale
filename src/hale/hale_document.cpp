@@ -23,9 +23,9 @@ document_edit(DocumentEdit *edit, Document *document, DocumentSession *session)
     edit->internal = session == NULL;
 
     edit->type = DocumentEdit::Insert;
-    edit->block_text_change = 0;
+    edit->block_changed = 0;
     edit->block_list_change_first = 0;
-    edit->block_list_change_count = 0;
+    edit->block_count = 0;
     edit->pos_begin.block = 0;
     edit->pos_begin.position = 0;
     edit->pos_end.block = 0;
@@ -71,6 +71,16 @@ _buffer_text(FixedGapArena *arena, memi offset, memi size, ch *text) {
     fixed_gap_arena_text(arena, offset * sizeof(ch), size * sizeof(ch), (ch8*)text);
 }
 
+hale_internal inline memi
+_buffer_length(FixedGapArena *arena) {
+    return arena->size / sizeof(ch);
+}
+
+hale_internal inline memi
+_buffer_length(FixedGapArena &arena) {
+    return arena.size / sizeof(ch);
+}
+
 //
 //
 //
@@ -99,6 +109,7 @@ hale_internal inline void
 _buffer_text(GapBuffer *buffer, memi offset, memi size, ch *text) {
     gap_buffer_text(buffer, offset, size, text);
 }
+
 //
 //
 //
@@ -302,29 +313,34 @@ convert_and_insert(Document *document, memi offset, ch *text, memi text_length, 
     ch *it_text = it;
     ch *end = text + text_length;
 
-    memi insert_chunk_length;
-    memi insert_offset = offset;
+    memi len;
+    memi off = offset;
     for (;;)
     {
         auto le = string_find_next_line_ending(&it, end);
-        insert_chunk_length = it-it_text - le.length;
-        if (insert_offset == 7871) {
-            _CrtDbgBreak();
-        }
-        _buffer_insert(&document->buffer, insert_offset, it_text, insert_chunk_length);
-        insert_offset += insert_chunk_length;
-        if (le.type == LineEnding_Unknown) {
-            break;
-        } else {
+        len = (it-it_text) - le.length;
+        _buffer_insert(&document->buffer,
+                       off,
+                       it_text,
+                       len);
+
+        off += len;
+
+        if (le.type != LineEnding_Unknown) {
             // Insert LF new line.
-            _buffer_insert(&document->buffer, insert_offset, (ch*)L"\n", 1);
-            vector_push(offsets, insert_offset);
-            insert_offset += 1;
+            _buffer_insert(&document->buffer,
+                           off,
+                           (ch*)L"\n", 1);
+            off += 1;
+
+            vector_push(offsets, off);
+        } else {
+            break;
         }
         it_text = it;
     }
 
-    return insert_offset - offset;
+    return off - offset;
 }
 
 //
@@ -351,7 +367,7 @@ document_block_at(Document *document, memi offset, memi search_begin, memi searc
     hale_assert(search_begin <= search_end);
     hale_assert(search_begin < vector_count(document->blocks));
     hale_assert(search_end < vector_count(document->blocks));
-    hale_assert(offset <= document->buffer.length);
+    hale_assert(offset <= _buffer_length(document->buffer));
     if (offset >= vector_last(&document->blocks).end) {
         return vector_count(document->blocks) - 1;
     }
@@ -421,7 +437,7 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
     edit->undo_head = document->undo->writingHead();
     edit->offset_begin = position_to_offset(document, position);
 
-    memi old_document_end = document->buffer.length;
+    memi old_document_end = _buffer_length(document->buffer);
 
     Vector<memi> offsets;
     vector_init(&offsets);
@@ -429,10 +445,10 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
 
     edit->offset_end = edit->offset_begin + text_length;
 
-    if (vector_count(offsets) == 0) {
-        edit->block_text_change = position.block;
+    edit->block_count = vector_count(offsets);
+    if (edit->block_count == 0) {
+        edit->block_changed = position.block;
         edit->block_list_change_first = position.block;
-        edit->block_list_change_count = 0;
     } else if (position.position == 0) {
         // INSERT BEFORE
 
@@ -448,21 +464,18 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
 
         if (edit->offset_begin == old_document_end) {
             // If we're inserting at the end of the document, it's always the first line that is changed.
-            edit->block_text_change = position.block;
+            edit->block_changed = position.block;
             edit->block_list_change_first = position.block + 1;
-            edit->block_list_change_count = vector_count(offsets);
         } else {
             // Last line is changed.
-            edit->block_text_change = position.block + vector_count(offsets);
+            edit->block_changed = position.block + vector_count(offsets);
             edit->block_list_change_first = position.block;
-            edit->block_list_change_count = vector_count(offsets);
         }
 
     } else {
         // First line is changed.
-        edit->block_text_change = position.block;
+        edit->block_changed = position.block;
         edit->block_list_change_first = position.block + 1;
-        edit->block_list_change_count = vector_count(offsets);
 
     }
 
@@ -472,35 +485,34 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
 
     // Invalidate the changed block.
 
-    document->blocks[edit->block_text_change].flags = Document::Block::F_TextChanged;
+    document->blocks[edit->block_changed].flags = Document::Block::F_TextChanged;
 
     // TODO: Invalidate the block also for the sessions.
 
     // Insert new blocks.
 
-    if (edit->block_list_change_count > 0)
+    if (edit->block_count > 0)
     {
         Document::Block block;
         block.end = 0;
         block.flags = Document::Block::F_TextChanged;
         // block.meta = NULL;
+
+        // We're inserting this *before* the position.block.
         vector_insert(&document->blocks,
-                      edit->block_list_change_first,
-                      edit->block_list_change_count,
+                      position.block,
+                      vector_count(offsets),
                       block);
 
         // TODO: Insert the blocks also to the sessions.
-
-        memi end = edit->block_list_change_count;
-        for (memi i = 0; i != end; i++) {
-            document->blocks[edit->block_list_change_first + i].end = offsets[i];
+        for (memi i = 0; i != edit->block_count; i++) {
+            document->blocks[position.block + i].end = offsets[i];
         }
     }
 
     // Shift the offsets.
-
-    for (memi i = position.block;
-         i < vector_count(document->blocks);
+    for (memi i = position.block + edit->block_count;
+         i != vector_count(document->blocks);
          i++)
     {
         document->blocks[i].end += text_length;
@@ -540,7 +552,7 @@ document_remove(DocumentEdit *edit, DocumentPosition position, memi length)
 void
 document_text(Document *document, memi offset, memi length, ch *buffer, memi buffer_length)
 {
-    hale_assert(offset + length <= document->buffer.length);
+    hale_assert(offset + length <= _buffer_length(document->buffer));
     hale_assert(buffer_length >= length);
 
     if (length != 0) {

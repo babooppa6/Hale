@@ -51,10 +51,10 @@ Vector<ch8>
 _helper_arena_text(FixedGapArena *arena)
 {
     Vector<ch8> dump;
-    vector_init(&dump, arena->length);
-    if (arena->length != 0) {
-        vector_resize(&dump, arena->length);
-        fixed_gap_arena_text(arena, 0, arena->length, vector_data(&dump));
+    vector_init(&dump, arena->size);
+    if (arena->size != 0) {
+        vector_resize(&dump, arena->size);
+        fixed_gap_arena_text(arena, 0, arena->size, vector_data(&dump));
     }
     return dump;
 }
@@ -257,7 +257,7 @@ test_buffer_stress_performance()
             r2 = random[i + 1];
             insert_length = memi((r32)(insert_text_length-1) * r1) + 1;
             // hale_assert(insert_length <= insert_text_length && insert_length > 0);
-            insert_offset = memi((r32)arena.length * r2);
+            insert_offset = memi((r32)arena.size * r2);
 
             for (memi k = 0; k < insert_length; k++) {
                 fixed_gap_arena_insert(&arena, insert_offset + k, (ch8*)(insert_text_8 + k), 1);
@@ -279,13 +279,13 @@ test_buffer_stress_performance()
     memcmp(qt_string_buffer.constData(), buffer.c_str(), buffer.size() * sizeof(ch));
 
     std::basic_string<ch8> arena_text;
-    arena_text.resize(arena.length);
-    fixed_gap_arena_text(&arena, 0, arena.length, &arena_text[0]);
+    arena_text.resize(arena.size);
+    fixed_gap_arena_text(&arena, 0, arena.size, &arena_text[0]);
     hale_test(string_buffer_8 == arena_text);
 
     qDebug() << "gap_buffer.length" << gap_buffer2.length;
     qDebug() << "gap_buffer.capacity" << gap_buffer2.capacity;
-    qDebug() << "arena.length" << arena.length;
+    qDebug() << "arena.size" << arena.size;
     qDebug() << "arena.capacity" << vector_count(arena.buffers) * buf_capacity;
 #ifdef HALE_TEST
     qDebug() << "mem move size " << gap_buffer2.statistics.mem_move_size;
@@ -312,9 +312,9 @@ test_document_edit()
     hale_test(edit.undo == 0);
     hale_test(edit.internal == 1);
     hale_test(edit.type == DocumentEdit::Insert);
-    hale_test(edit.block_text_change == 0);
+    hale_test(edit.block_changed == 0);
     hale_test(edit.block_list_change_first == 0);
-    hale_test(edit.block_list_change_count == 0);
+    hale_test(edit.block_count == 0);
     hale_test(edit.pos_begin.block == 0);
     hale_test(edit.pos_begin.position == 0);
     hale_test(edit.pos_end.block == 0);
@@ -322,6 +322,42 @@ test_document_edit()
     hale_test(edit.offset_begin == 0);
     hale_test(edit.offset_end == 0);
     hale_test(edit.undo_head == 0);
+}
+
+hale_internal void
+test_document_insert_edit()
+{
+    Document document;
+    document_init(&document);
+
+    DocumentEdit edit;
+    document_edit(&edit, &document, 0);
+
+    document_insert(&edit, {0, 0}, "Hello");
+    hale_test(edit.type == DocumentEdit::Insert);
+    hale_test(edit.block_changed == 0);
+    hale_test(edit.block_list_change_first == 0);
+    hale_test(edit.block_count == 0);
+    hale_test(edit.pos_begin.block == 0);
+    hale_test(edit.pos_begin.position == 0);
+    hale_test(edit.pos_end.block == 0);
+    hale_test(edit.pos_end.position == 5);
+    hale_test(edit.offset_begin == 0);
+    hale_test(edit.offset_end == 5);
+
+    document_insert(&edit, edit.pos_end, "\n");
+    hale_test(edit.type == DocumentEdit::Insert);
+    hale_test(edit.block_changed == 0);
+    hale_test(edit.block_list_change_first == 1);
+    hale_test(edit.block_count == 1);
+    hale_test(edit.pos_begin.block == 0);
+    hale_test(edit.pos_begin.position == 5);
+    hale_test(edit.pos_end.block == 1);
+    hale_test(edit.pos_end.position == 0);
+    hale_test(edit.offset_begin == 5);
+    hale_test(edit.offset_end == 6);
+
+    document_release(&document);
 }
 
 hale_internal void
@@ -333,29 +369,25 @@ test_document_insert()
     DocumentEdit edit;
     document_edit(&edit, &document, 0);
 
-    document_insert(&edit, {0, 0}, "Hello");
-    hale_test(edit.type == DocumentEdit::Insert);
-    hale_test(edit.block_text_change == 0);
-    hale_test(edit.block_list_change_first == 0);
-    hale_test(edit.block_list_change_count == 0);
-    hale_test(edit.pos_begin.block == 0);
-    hale_test(edit.pos_begin.position == 0);
-    hale_test(edit.pos_end.block == 0);
-    hale_test(edit.pos_end.position == 5);
-    hale_test(edit.offset_begin == 0);
-    hale_test(edit.offset_end == 5);
+    hale_test(document.blocks[0].end == 0);
+    hale_test(vector_count(document.blocks) == 1);
 
-    document_insert(&edit, edit.pos_end, "\n");
-    hale_test(edit.type == DocumentEdit::Insert);
-    hale_test(edit.block_text_change == 0);
-    hale_test(edit.block_list_change_first == 1);
-    hale_test(edit.block_list_change_count == 1);
-    hale_test(edit.pos_begin.block == 0);
-    hale_test(edit.pos_begin.position == 5);
-    hale_test(edit.pos_end.block == 1);
-    hale_test(edit.pos_end.position == 0);
-    hale_test(edit.offset_begin == 5);
-    hale_test(edit.offset_end == 6);
+    document_insert(&edit, {0, 0}, "Hello\n");
+    hale_test(document.blocks[0].end == 6);
+    hale_test(document.blocks[1].end == 6);
+    hale_test(vector_count(document.blocks) == 2);
+
+    document_insert(&edit, {1, 0}, "World\n");
+    hale_test(document.blocks[0].end == 6);
+    hale_test(document.blocks[1].end == 12);
+    hale_test(document.blocks[2].end == 12);
+    hale_test(vector_count(document.blocks) == 3);
+
+    document_insert(&edit, {2, 0}, "!");
+    hale_test(document.blocks[0].end == 6);
+    hale_test(document.blocks[1].end == 12);
+    hale_test(document.blocks[2].end == 13);
+    hale_test(vector_count(document.blocks) == 3);
 
     document_release(&document);
 }
@@ -863,7 +895,7 @@ test_fixed_gap_arena_stress()
         {
             op = memi((r32)3 * random[i++]);
 
-            if (arena.length == 0) {
+            if (arena.size == 0) {
                 if (op == OneRemove) {
                     op = OneInsert;
                 } else if (op == AllRemove) {
@@ -874,13 +906,13 @@ test_fixed_gap_arena_stress()
             if (op == OneInsert || op == AllInsert)
             {
                 op_length = memi((r32)(op_text_length-1) * random[i++]) + 1;
-                op_offset = memi((r32)arena.length * random[i++]);
+                op_offset = memi((r32)arena.size * random[i++]);
             }
             else // OneRemove || AllRemove
             {
                 memi random_length = memi((r32)(op_text_length-1) * random[i++]) + 1;
-                op_length = hale_minimum(arena.length, random_length);
-                op_offset = memi((r32)(arena.length-op_length) * random[i++]);
+                op_length = hale_minimum(arena.size, random_length);
+                op_offset = memi((r32)(arena.size - op_length) * random[i++]);
             }
 
             const ch8 *op_name;
@@ -952,7 +984,7 @@ test_fixed_gap_arena_stress_data()
             r2 = random[i + 1];
             insert_length = memi((r32)(insert_text_length-1) * r1) + 1;
             // hale_assert(insert_length <= insert_text_length && insert_length > 0);
-            insert_offset = memi((r32)arena.length * r2);
+            insert_offset = memi((r32)arena.size * r2);
 
             buffer_count = vector_count(arena.buffers);
             for (memi k = 0; k < insert_length; k++) {
@@ -961,7 +993,7 @@ test_fixed_gap_arena_stress_data()
                                        insert_text_8 + k,
                                        1);
             }
-            qDebug().nospace() << (platform.read_time_counter() - time) * 1e6 << "\t" << arena.length << "\t" << vector_count(arena.buffers) - buffer_count;
+            qDebug().nospace() << (platform.read_time_counter() - time) * 1e6 << "\t" << arena.size << "\t" << vector_count(arena.buffers) - buffer_count;
         }
     }
 }
@@ -1061,10 +1093,11 @@ test_fixed_gap_buffer()
 void
 test_document()
 {
+    test_document_insert_edit();
+    test_document_insert();
     test_document_load();
 //    test_string();
 //    test_fixed_gap_buffer();
-//    test_document_insert();
 }
 
 } // namespace hale

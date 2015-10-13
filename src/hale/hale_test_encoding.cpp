@@ -26,8 +26,7 @@ test_utf8_decoder_speed()
     CodecReturn cr;
     Decode d;
 
-    d.utf8 = {};
-    d.hale = {};
+    d.s = {};
 
     d.out  = destination;
     d.out_ = destination + hale_array_count(destination);
@@ -36,14 +35,13 @@ test_utf8_decoder_speed()
 
     qDebug() << "begin";
     {
-        HALE_PERFORMANCE_TIMER(decoder);
+        HALE_PERFORMANCE_TIMER(decoder_time);
         for (int i = 0; i < 100000; i++)
         {
-            cr = decoder_utf8(&d);
+            cr = decode<Encoding::UTF8>(&d);
             d.out  = destination;
-            d.in  = source;
-            d.utf8 = {};
-            d.hale = {};
+            d.in   = source;
+            d.s    = {};
         }
     }
     qDebug() << "end";
@@ -56,8 +54,7 @@ test_utf8_decoder_speed()
 
 #define _test_decoder(decoder)\
     Decode d;\
-    d.utf8 = {};\
-    d.hale = {};\
+    d.s = {};\
     d.out  = (u16*)destination;\
     d.out_ = (u16*)(destination + (hale_array_count(destination)));\
     d.in  = (u8*)&source;\
@@ -69,7 +66,7 @@ test_utf8_decoder_new_lines()
 {
     {   u16 destination[] = {0, 0, 0, 0, 0, 0, 0, 0};
         u8  source[] = {'\n','\r','\r','\n'};
-        _test_decoder(decoder_utf8);
+        _test_decoder(decode<Encoding::UTF8>);
         hale_test(d.in  == source + 4);
         hale_test(d.out == destination + 3);
         hale_test(e     == CodecReturn::InputPending);
@@ -89,7 +86,7 @@ test_utf8_decoder_tiny_buffers()
 {
     {   u16 destination[] = {0, 0, 0};
         u8  source[] = {'a'};
-        _test_decoder(decoder_utf8);
+        _test_decoder(decode<Encoding::UTF8>);
         hale_test(d.in  == source + 1);
         hale_test(d.out == destination + 1);
         hale_test(e    == CodecReturn::InputPending);
@@ -99,7 +96,7 @@ test_utf8_decoder_tiny_buffers()
 
     {   u16 destination[] = {0, 0};
         u8  source[] = {0xC2, 0xA2};
-        _test_decoder(decoder_utf8);
+        _test_decoder(decode<Encoding::UTF8>);
         hale_test(d.in  == source + 2);
         hale_test(d.out == destination + 1);
         hale_test(e    == CodecReturn::OutputUsed);
@@ -109,7 +106,7 @@ test_utf8_decoder_tiny_buffers()
 
     {   u16 destination[] = {0, 0};
         u8  source[] = {0xE2, 0x82, 0xAC};
-        _test_decoder(decoder_utf8);
+        _test_decoder(decode<Encoding::UTF8>);
         hale_test(d.in  == source + 3);
         hale_test(d.out == destination + 1);
         hale_test(e    == CodecReturn::OutputUsed);
@@ -120,7 +117,7 @@ test_utf8_decoder_tiny_buffers()
 
     {   u16 destination[] = {0, 0};
         u8  source[] = {0xF0, 0x90, 0x8D, 0x88};
-        _test_decoder(decoder_utf8);
+        _test_decoder(decode<Encoding::UTF8>);
         hale_test(d.in  == source + 4);
         hale_test(d.out == destination + 2);
         hale_test(e    == CodecReturn::OutputUsed);
@@ -136,7 +133,7 @@ test_utf8_decoder_tiny_buffers()
     // Partial destination
     {   u16 destination[] = {0, 0};
         u8  source[] = {'a', 0xF0, 0x90, 0x8D, 0x88};
-        _test_decoder(decoder_utf8);
+        _test_decoder(decode<Encoding::UTF8>);
         hale_test(d.in  == source + 1);
         hale_test(d.out == destination + 1);
         hale_test(e    == CodecReturn::OutputUsed);
@@ -146,7 +143,7 @@ test_utf8_decoder_tiny_buffers()
         // Continue with new buffer.
 
         d.out = destination;
-        e = decoder_utf8(&d);
+        e = decode<Encoding::UTF8>(&d);
         hale_test(d.in  == source + 5);
         hale_test(d.out == destination + 2);
         hale_test(e    == CodecReturn::OutputUsed);
@@ -157,7 +154,7 @@ test_utf8_decoder_tiny_buffers()
     // Partial source (2+2 bytes)
     {   u16 destination[] = {0, 0};
         u8  source[] = {0xF0, 0x90};
-        _test_decoder(decoder_utf8);
+        _test_decoder(decode<Encoding::UTF8>);
         hale_test(d.in  == source + 2);
         hale_test(d.out == destination);
         // e wouldn't be set to success, as d.utf8.state == 36; (36/12)-1 = 3-1 = 2; 2 more characters expected.
@@ -169,7 +166,7 @@ test_utf8_decoder_tiny_buffers()
         u8 source2[] = {0x8D, 0x88};
         d.in  = source2;
         d.in_ = source2 + 2;
-        e = decoder_utf8(&d);
+        e = decode<Encoding::UTF8>(&d);
         hale_test(d.in  == source2 + 2);
         hale_test(d.out == destination + 2);
         hale_test(e     == CodecReturn::OutputUsed);
@@ -180,10 +177,10 @@ test_utf8_decoder_tiny_buffers()
     // Partial source (1+1+1 bytes)
     {   u16 destination[] = {0, 0};
         u8  source[] = {0xE2};
-        _test_decoder(decoder_utf8);
+        _test_decoder(decode<Encoding::UTF8>);
         hale_test(d.in  == source + 1);
         hale_test(d.out == destination);
-        hale_test(d.utf8.state == 36);
+        hale_test(d.s.input_state == 36);
         // e wouldn't be set to 1, as d.utf8.state == 36; (36/12)-1 = 3-1 = 2; 2 more characters expected.
         hale_test(e    == CodecReturn::InputPending);
         hale_test(destination[0] == 0);
@@ -193,10 +190,10 @@ test_utf8_decoder_tiny_buffers()
         u8 source2[] = {0x82};
         d.in  = source2;
         d.in_ = source2 + 1;
-        e = decoder_utf8(&d);
+        e = decode<Encoding::UTF8>(&d);
         hale_test(d.in  == source2 + 1);
         hale_test(d.out == destination);
-        hale_test(d.utf8.state == 24);
+        hale_test(d.s.input_state == 24);
         // e wouldn't be set to 1, as d.utf8.state == 24; (24/12)-1 = 2-1 = 1; 1 more character expected.
         hale_test(e    == CodecReturn::InputPending);
         hale_test(destination[0] == 0);
@@ -205,7 +202,7 @@ test_utf8_decoder_tiny_buffers()
         u8 source3[] = {0xAC};
         d.in  = source3;
         d.in_ = source3 + 1;
-        e = decoder_utf8(&d);
+        e = decode<Encoding::UTF8>(&d);
         hale_test(d.in  == source3 + 1);
         hale_test(d.out == destination + 1);
         hale_test(e     == CodecReturn::OutputUsed);
@@ -220,7 +217,7 @@ test_utf8_decoder_large_buffers()
     u16 destination[128];
 
     Decode d;
-    d.utf8 = {};
+    d.s = {};
 
     d.out  = destination;
     d.out_ = destination + hale_array_count(destination);
@@ -249,7 +246,7 @@ test_utf8_decoder_large_buffers()
             d.in_ = d.in + s;
         }
 
-        cr = decoder_utf8(&d);
+        cr = decode<Encoding::UTF8>(&d);
 
 
         switch (cr)
@@ -281,50 +278,102 @@ test_utf8_decoder_large_buffers()
 //
 
 void
-test_utf8_encoder_tiny_buffers()
+test_utf_boundaries()
 {
-    {   u16 source[] = {0x70,  0x700, 0xF000, 0x1F000, 0x3F00000, 0x7F000000, 0x80000001};
-        u8  destination[] = {0, 0, 0, 0, 0, 0, 0, 0,
-                             0, 0, 0, 0, 0, 0, 0, 0,
-                             0, 0, 0, 0, 0, 0, 0, 0,
-                             0, 0, 0, 0, 0, 0, 0, 0,
-                             0, 0, 0, 0, 0, 0, 0, 0};
+    u8 source[4096] = {};
+    u16 destination[4096] = {};
+    u16 reference[4096] = {};
 
-        Encode e;
-        e.in = source;
-        e.in_ = source + hale_array_count(source);
-        e.out = destination;
-        e.out_ = destination + hale_array_count(destination);
-        e.hale = {};
+    u8  *in   = source;
+    u8  *in_  = in;
 
-        encoder_utf8(&e);
-        hale_test(destination[0] == 0x70);
+    u16 *out  = destination;
+    u16 *out_ = out + hale_array_count(destination);
+
+    u16 *ref  = reference;
+    u16 *ref_ = ref;
+
+    File inf;
+    hale_assert(open(&inf, __WPROJECT__ L"tests/encoding/utf8.txt", File::Read));
+    seek(&inf, 3);
+    in_ += read(&inf, in, hale_array_count(source));
+    close(&inf);
+
+    CodecState s = {};
+    auto cr = decode<Encoding::UTF8>(&in, in_, &out, out_, &s);
+    hale_assert(cr == CodecReturn::InputPending);
+
+    hale_assert(open(&inf, __WPROJECT__ L"tests/encoding/utf16le.txt", File::Read));
+    seek(&inf, 2);
+    ref_ += read(&inf, ref, hale_array_count(reference) * sizeof(u16)) / sizeof(u16);
+    close(&inf);
+
+    memi rl = ref_ - ref;
+    memi ol = out - destination;
+    out = destination;
+    hale_test((rl) == (ol));
+    for (memi i = 0; i < (ol); i++)
+    {
+        u16 o = *out++;
+        u16 r = *ref++;
+        hale_test(o == r);
     }
+}
 
-    {   u16 source[] = {0xd800, 0xdf48};
-        // 0xF0, 0x90, 0x8D, 0x88
-        u8  destination[] = {0, 0, 0, 0, 0, 0, 0, 0};
-
-        Encode e;
-        e.in = source;
-        e.in_ = source + hale_array_count(source);
-        e.out = destination;
-        e.out_ = destination + hale_array_count(destination);
-        e.hale = {};
-
-        encoder_utf8(&e);
+// Writes codepoints around known UTF-8 and UTF-16 boundaries (+-0xF)
+void
+write_utf32le()
+{
+    File out;
+    if (open(&out, __WPROJECT__ L"tests/encoding/utf32le.txt", File::Write))
+    {
+#if 0
+        // Full 31-bit.
+        u32 boundaries[] = {0x80, 0x800, 0x10000, 0x10FFFF, 0x200000, 0x4000000, 0x80000000};
+#else
+        // Restricted to RFC 3629 (0x10FFFF)
+        u32 boundaries[] = {
+            // UTF-8 2-byte boundary.
+            0x000080,
+            // UTF-8 3-byte boundary.
+            0x000800,
+            // UTF-8  4-byte boundary.
+            // UTF-16 2-word boundary.
+            0x010000,
+            // Maximum Unicode codepoint.
+            0x10FFFF
+        };
+#endif
+        u32 nl = '\n';
+        u32 sp = ' ';
+        write(&out, "\xFF\xFE\x00\x00", 4);
+        for (memi i = 0; i < hale_array_count(boundaries); i++)
+        {
+            for (memi j = boundaries[i]-0xF; j != boundaries[i]+0xF; j++)
+            {
+                if (j <= 0x0010FFFF) {
+                    write(&out, (u8*)&j, sizeof(u32));
+                    write(&out, (u8*)&sp, sizeof(u32));
+                }
+            }
+            write(&out, (u8*)&nl, sizeof(u32));
+        }
+        close(&out);
     }
 }
 
 void
 test_encoding()
-{
-    test_utf8_encoder_tiny_buffers();
+{    
+    // write_utf32le();
 
-    // test_utf8_decoder_tiny_buffers();
-    // test_utf8_decoder_new_lines();
-    // test_utf8_decoder_large_buffers();
-    // test_utf8_decoder_speed();
+
+
+    test_utf8_decoder_tiny_buffers();
+    test_utf_boundaries();
+//    test_utf8_decoder_new_lines();
+//    test_utf8_decoder_large_buffers();
+//    test_utf8_decoder_speed();
 }
 
 } // namespace hale

@@ -27,8 +27,8 @@ int main(int argc, char *argv[])
 
     onig_init();
 
-    // hale::test_document();
     hale::test_encoding();
+    hale::test_document();
 }
 #else
 int main(int argc, char *argv[])
