@@ -63,8 +63,6 @@ By example: If you are familiar with [Scintilla Editing Component](http://www.sc
 
 The codebase is split into by logical modules.
 
-Notation: `P` still in *prototype*, `H` rewritten to *handmade*, `½` partially rewritten to *handmade*, `*` not yet implemented.
-
 - `½|α` **Platform** - Platform layer support for Windows.
 - `H|α` **Foundation** - Basic types and general-purpose containers and operations with them.
 
