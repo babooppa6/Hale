@@ -35,7 +35,7 @@ There is some notation used in the following document.
 
 ### Planning notation
 
-- `α` alpha release (hopefully after the 11 days marathon)
+- `α` alpha release (hopefully after the 11 days marathon, some features may be scaled down to their simpler versions)
 - `β` beta release
 - `γ` gamma release
 
@@ -61,21 +61,18 @@ By example: If you are familiar with [Scintilla Editing Component](http://www.sc
 
 ## Modules
 
-The codebase is split into by logical modules.
+The codebase is split into logical modules.
 
 - `½|α` **Platform** - Platform layer support for Windows.
 - `H|α` **Foundation** - Basic types and general-purpose containers and operations with them.
-
 - `H|α` **Document** - Editing and managing documents.
 - `P|α` **Scope** - Scope-based configuration.
 - `P|α` **Bracket** - Directory-based configuration.
 - `P|α` **Shell** - Shell integration.
-
 - `P|α` **UI/Application** - Top-level UI management.
 - `P|α` **UI/Window** - Top-level windows.
 - `P|α` **UI/Panel** - Window layout.
 - `P|α` **UI/Model** - Glue between models (Document, Bracket, Shell) and UI.
-
 - `½|α` **Lua** - Lua scripting and configuration.
 
 # Features
