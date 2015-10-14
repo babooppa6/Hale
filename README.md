@@ -77,7 +77,7 @@ The codebase is split into logical modules.
 
 # Features
 
-Although I don't want the core of the editor to not contain any "real" features, but rather a foundation for building them, there are still some properties of the system, that can be propagated.
+Although I don't want the core of the editor to contain any "real" features, but rather a foundation for building them, there are still some properties of the system, that can be propagated.
 
 Some other features come from the prototype itself and are lesser versions of what I would like to achieve. However, in order to deliver a working product as soon as possible, I use them as a good placeholder.
 
