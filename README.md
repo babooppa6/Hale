@@ -91,7 +91,7 @@ Some other features come from the prototype itself and are lesser versions of wh
 - `P|α` **Shell integration** - Specialized terminal emulator embedded into the application.
 - `½|α` **Lua scripting** - A general purpose scripting for prototyping and makeshift extensions.
 
-To not spoil it all, here is a few secret features.
+To not spoil it all, here are a few secret features.
 
 - `*|β` **C++ Scribe** - A secret feature.
 - `*|β` **Streams** - A secret feature.
