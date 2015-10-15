@@ -811,10 +811,10 @@ buf_dump(Buf *buffer, Vector<ch8> *string)
     }
 
     if (buffer->gap_start == buffer->gap_end) {
-        vector_push(string, '|');
+        vector_push(string, (ch8)'|');
     } else {
         for (; i < buffer->gap_end; ++i) {
-            vector_push(string, '#');
+            vector_push(string, (ch8)'#');
         }
     }
 
@@ -824,14 +824,14 @@ buf_dump(Buf *buffer, Vector<ch8> *string)
     }
 
     for (; i < buf_page_end(buffer); ++i) {
-        vector_push(string, '-');
+        vector_push(string, (ch8)'-');
     }
 
 #ifdef HALE_DEBUG
     hale_assert(vector_count(string) == buf_capacity);
 #endif
 
-    vector_push(string, '\n');
+    vector_push(string, (ch8)'\n');
 }
 
 } // namespace hale

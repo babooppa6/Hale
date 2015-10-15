@@ -1,3 +1,4 @@
+#include "hale.h"
 #include "hale_platform.h"
 
 #include <Windows.h>
@@ -69,7 +70,7 @@ HALE_PLATFORM_OPEN_FILE(win32_open_file)
     DWORD creation = mode == File::Read ? OPEN_EXISTING : CREATE_ALWAYS; // Cannot combine! (CREATE_NEW|TRUNCATE_EXISTING);
 
     // CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-    file->handle = CreateFileW((LPCWSTR)path, access, sharing, 0, creation, 0, 0);
+    file->handle = CreateFileA((LPCSTR)path, access, sharing, 0, creation, 0, 0);
     return file->handle != INVALID_HANDLE_VALUE;
 }
 
@@ -140,6 +141,27 @@ HALE_PLATFORM_SEEK_FILE(win32_seek_file)
     return li.QuadPart;
 }
 
+HALE_PLATFORM_GET_FILE_SIZE_64(win32_get_file_size_64)
+{
+    LARGE_INTEGER li;
+    if (GetFileSizeEx(file->handle, &li)) {
+        return li.QuadPart;
+    }
+
+    return HALE_PLATFORM_INVALID_SIZE_64;
+}
+
+HALE_PLATFORM_GET_FILE_SIZE_32(win32_get_file_size_32)
+{
+    LARGE_INTEGER li;
+    if (GetFileSizeEx(file->handle, &li)) {
+        return safe_truncate_u64(li.QuadPart);
+    }
+
+    return HALE_PLATFORM_INVALID_SIZE_32;
+}
+
+
 //
 //
 //
@@ -180,24 +202,24 @@ HALE_PLATFORM_SEEK_FILE(win32_seek_file)
 
 HALE_PLATFORM_DEBUG_PRINT_N_16(win32_debug_print_N_16)
 {
-    std::wstring s(string, length);
-    OutputDebugStringW(s.c_str());
+    std::basic_string<ch16> s(string, length);
+    OutputDebugStringW((LPCWSTR)s.c_str());
 }
 
 HALE_PLATFORM_DEBUG_PRINT_N_8(win32_debug_print_N_8)
 {
-    std::string s(string, length);
-    OutputDebugStringA(s.c_str());
+    std::basic_string<ch8> s(string, length);
+    OutputDebugStringA((LPCSTR)s.c_str());
 }
 
 HALE_PLATFORM_DEBUG_PRINT_0_16(win32_debug_print_0_16)
 {
-    OutputDebugStringW(string);
+    OutputDebugStringW((LPCWSTR)string);
 }
 
 HALE_PLATFORM_DEBUG_PRINT_0_8(win32_debug_print_0_8)
 {
-    OutputDebugStringA(string);
+    OutputDebugStringA((LPCSTR)string);
 }
 
 Platform::Platform()
@@ -215,6 +237,8 @@ Platform::Platform()
     copy_memory = win32_copy_memory;
     move_memory = win32_move_memory;
     read_time_counter = win32_read_time_counter;
+    get_file_size_32 = win32_get_file_size_32;
+    get_file_size_64 = win32_get_file_size_64;
 
     open_file = win32_open_file;
     close_file = win32_close_file;

@@ -1,9 +1,8 @@
+#include "hale_encoding_mib.h"
+
 namespace hale {
 
-
-template<>
-inline u16*
-utf32_from<Encoding::Hale, u16>(CodecState *s, u16 *in)
+UTF32_FROM(Encoding::Hale)
 {
     if (s->input_state == 2) {
         s->codepoint = s->input_option & 0xFFFF;
@@ -11,7 +10,7 @@ utf32_from<Encoding::Hale, u16>(CodecState *s, u16 *in)
         return in;
     }
 
-    u32 unit = *in;
+    ch32 unit = *in;
     in++;
 
     // `unit` is `u32`, but really we expect `u16`.
@@ -25,7 +24,7 @@ utf32_from<Encoding::Hale, u16>(CodecState *s, u16 *in)
         } else {
             // TODO: We're outputting 2 characters here, instead of one.
             s->codepoint = s->input_option >> 16;
-            s->input_state = (s->input_option & 0xFFFF) == 0 ? 2 : 0;
+            s->input_state = (s->input_option & 0xFFFF) == 0 ? 0 : 2;
         }
     } else if (unit < 0xDC00) {
         s->codepoint = (unit - 0xD800) << 10;
@@ -60,9 +59,7 @@ utf32_from<Encoding::Hale, u16>(CodecState *s, u16 *in)
 #if 1
 
 // 16% faster than naive
-template<>
-inline u16*
-utf32_to<Encoding::Hale, u16>(CodecState *s, u16 *out)
+UTF32_TO(Encoding::Hale)
 {
     u32 r = // in == '\r' (1)
             (!(s->codepoint ^ '\r')) |

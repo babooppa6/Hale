@@ -1,3 +1,5 @@
+#include "hale_encoding_mib.h"
+
 namespace hale {
 
 //enum Utf8State {
@@ -5,7 +7,7 @@ namespace hale {
 //    Utf8State_Reject = 12
 //};
 
-const u8* EncodingInfo<Encoding::UTF8>::Preamble = (const u8*)"\xEF\xBB\xBF";
+const EncodingPreamble EncodingInfo<Encoding::UTF8>::Preamble((const ch8*)"\xEF\xBB\xBF", 3);
 
 //
 // UTF-8 to UTF-32
@@ -44,15 +46,14 @@ static const u8 utf8d[] = {
 // state = 36 -> 3 more bytes expected
 // state = 48 -> 4 more bytes expected
 
-template<>
-u8*
-utf32_from<Encoding::UTF8>(CodecState *s, u8 *in)
+UTF32_FROM(Encoding::UTF8)
 {
-    uint32_t type = utf8d[*in];
+    u8 byte = (u8)*in;
+    u32 type = utf8d[byte];
 
     s->codepoint = (s->input_state != EncodingInfo<Encoding::UTF8>::Accept) ?
-        (*in & 0x3fu) | (s->codepoint << 6) :
-        (0xff >> type) & (*in);
+        (byte & 0x3fu) | (s->codepoint << 6) :
+        (0xff >> type) & (byte);
 
     s->input_state = utf8d[256 + s->input_state + type];
     return in + 1;
@@ -76,9 +77,7 @@ utf32_from<Encoding::UTF8>(CodecState *s, u8 *in)
 // See utf32_utf8_31 for full 31-bit encoding.
 
 // Maximum output: 4-bytes.
-template<>
-inline u8*
-utf32_to<Encoding::UTF8>(CodecState *s, u8 *out)
+UTF32_TO(Encoding::UTF8)
 {
     u32 codepoint = s->codepoint;
     if (codepoint < 0x80) { // (codepoint & ~0x7F) == 0

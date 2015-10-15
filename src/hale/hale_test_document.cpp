@@ -10,6 +10,8 @@
 #include "hale_gap_buffer.h"
 #include "hale_fixed_gap_buffer.h"
 
+#include "hale_helper_file.h"
+
 #include <tdocumentbuffer.h>
 #include <QString>
 
@@ -397,9 +399,66 @@ test_document_load()
 {
     Document document;
     document_init(&document);
-    QString file(__FILE__);
-    document_load(&document, (ch*)file.data());
+    document_load(&document, (ch8*)__FILE__);
+    Vector<ch> document_v;
+    vector_init(&document_v, document_length(&document));
+    vector_resize(&document_v, document_length(&document));
+    document_text(&document, 0, document_length(&document),
+                  vector_begin(&document_v),
+                  vector_count(&document_v));
     document_release(&document);
+
+    auto r = read_file<Encoding::UTF8, Encoding::Hale>((ch8*)__FILE__);
+    hale_assert(r.status == 1);
+
+    File out;
+    hale_assert(open(&out, (ch8*)(__PROJECT__ "tests/temp/test_document_load.txt"), File::Write));
+    write(&out, "\xFF\xFE", 2);
+    write(&out,
+          vector_begin(&document_v),
+          vector_count(&document_v) * sizeof(ch));
+    close(&out);
+
+    hale_assert(vector_count(document_v) == vector_count(r.out));
+    for (memi i = 0; i < vector_count(document_v); i++)
+    {
+        ch16 d = document_v[i];
+        ch16 o = r.out[i];
+        hale_test(d == o);
+    }
+
+    vector_release(&document_v);
+    vector_release(&r.out);
+}
+
+hale_internal void
+test_document_save()
+{
+    ch8 *expected_path = (ch8*)__FILE__;
+    ch8 *actual_path = (ch8*)(__PROJECT__ "tests/temp/test_document_save.txt");
+    Document document;
+    document_init(&document);
+    document_load(&document, expected_path);
+    document_save(&document, actual_path);
+    document_release(&document);
+
+    auto expected = read_file<Encoding::UTF8, Encoding::Hale>(expected_path);
+    auto actual = read_file<Encoding::UTF8, Encoding::Hale>(actual_path);
+
+    hale_assert(expected.status == 1);
+    hale_assert(actual.status == 1);
+
+    hale_test(vector_count(&expected.out) == vector_count(&actual.out));
+    for (memi i = 0; i < vector_count(expected.out); i++)
+    {
+        ch16 e = expected.out[i];
+        ch16 a = actual.out[i];
+        hale_test(e == a);
+    }
+    // hale_test(equal(&expected.out, &actual.out));
+
+    vector_release(&expected.out);
+    vector_release(&actual.out);
 }
 
 //
@@ -423,13 +482,13 @@ test_fixed_gap_buffer_buf_stress()
     Vector<r32> random = _helper_make_random_sequence(seed, 10, __FUNCTION__);
 
     memi text_length = 20;
-    const ch8 *text = "AllenMiblo0123456789";
+    const ch8 *text = (const ch8*)"AllenMiblo0123456789";
 
     memi insert_length,
          insert_offset;
 
     r32 r1, r2;
-    std::string mirror, s;
+    std::basic_string<ch8> mirror, s;
     for (memi i = 0; i < vector_count(random); i += 2)
     {
         r1 = random[i];
@@ -462,7 +521,7 @@ test_fixed_gap_buffer_buf_stress()
 
 hale_internal
 void
-_helper_test_mirror(FixedGapArena *arena, std::string &mirror)
+_helper_test_mirror(FixedGapArena *arena, std::basic_string<ch8> &mirror)
 {
     auto dump = _helper_arena_text(arena);
     bool equal = vector_equal(&dump, mirror.c_str(), mirror.length());
@@ -495,7 +554,7 @@ _helper_test_fixed_gap_arena_insert_f(FixedGapArena *arena,
                                       memi offset,
                                       const ch8 *data,
                                       memi size,
-                                      std::string &mirror)
+                                      std::basic_string<ch8> &mirror)
 {
     fixed_gap_arena_insert(arena, offset, data, size);
     mirror.insert(mirror.begin() + offset, data, data + size);
@@ -507,7 +566,7 @@ void
 _helper_test_fixed_gap_arena_remove_f(FixedGapArena *arena,
                                       memi offset,
                                       memi size,
-                                      std::string &mirror)
+                                      std::basic_string<ch8> &mirror)
 {
     fixed_gap_arena_remove(arena, offset, size);
     mirror.erase(mirror.begin() + offset, mirror.begin() + offset + size);
@@ -693,18 +752,18 @@ test_fixed_gap_buffer_move_suffix()
 hale_internal void
 test_fixed_gap_arena_one_buf_insert()
 {
-    std::string mirror;
+    std::basic_string<ch8> mirror;
 
     FixedGapArena arena;
     fixed_gap_arena_init(&arena, 0);
     // initial
-    _helper_test_fixed_gap_arena_insert(&arena, 0, "Hello", 5);
+    _helper_test_fixed_gap_arena_insert(&arena, 0, (ch8*)"Hello", 5);
     // ==
-    _helper_test_fixed_gap_arena_insert(&arena, 5, "Hello", 5);
+    _helper_test_fixed_gap_arena_insert(&arena, 5, (ch8*)"Hello", 5);
     // <
-    _helper_test_fixed_gap_arena_insert(&arena, 3, "Miblo", 5);
+    _helper_test_fixed_gap_arena_insert(&arena, 3, (ch8*)"Miblo", 5);
     // >
-    _helper_test_fixed_gap_arena_insert(&arena, 9, "Miblo", 5);
+    _helper_test_fixed_gap_arena_insert(&arena, 9, (ch8*)"Miblo", 5);
 
     fixed_gap_arena_release(&arena);
 }
@@ -712,14 +771,14 @@ test_fixed_gap_arena_one_buf_insert()
 hale_internal void
 test_fixed_gap_arena_one_buf_remove()
 {
-    std::string mirror;
+    std::basic_string<ch8> mirror;
     Buf *buf;
 
     FixedGapArena arena;
     fixed_gap_arena_init(&arena, 0);
 
     // Before gap
-    _helper_test_fixed_gap_arena_insert(&arena, 0, "HelloMibloHowAreYou", 19);
+    _helper_test_fixed_gap_arena_insert(&arena, 0, (ch8*)"HelloMibloHowAreYou", 19);
     // HelloMibloHowAreYou###
     _helper_test_fixed_gap_arena_remove(&arena, 5, 5);
     // HelloHowAreYou###
@@ -729,7 +788,7 @@ test_fixed_gap_arena_one_buf_remove()
 
 
     // Around the gap
-    _helper_test_fixed_gap_arena_insert(&arena, 5, "Miblo", 5);
+    _helper_test_fixed_gap_arena_insert(&arena, 5, (ch8*)"Miblo", 5);
     // HelloMiblo###HowAreYou
     //      [xxxxxxxxx]
     buf = &arena.buffers[0];
@@ -773,7 +832,7 @@ hale_internal
 void
 _helper_arena_insert(memi fill1, memi offset, memi fill2)
 {
-    std::string mirror;
+    std::basic_string<ch8> mirror;
 
     FixedGapArena arena;
     fixed_gap_arena_init(&arena, 0);
@@ -810,7 +869,7 @@ hale_internal
 void
 _helper_arena_remove(memi fill_count, memi offset, memi size)
 {
-    std::string mirror;
+    std::basic_string<ch8> mirror;
 
     FixedGapArena arena;
     fixed_gap_arena_init(&arena, 0);
@@ -919,23 +978,23 @@ test_fixed_gap_arena_stress()
             switch (op)
             {
             case OneInsert: {
-                op_name = "OneInsert";
+                op_name = (ch8*)"OneInsert";
                 for (memi k = 0; k < op_length; k++) {
                     _helper_test_fixed_gap_arena_stress_insert(&arena, op_offset + k, op_text + k, 1);
                 }
             } break;
             case OneRemove: {
-                op_name = "OneRemove";
+                op_name = (ch8*)"OneRemove";
                 for (memi k = 0; k < op_length; k++) {
                     _helper_test_fixed_gap_arena_stress_remove(&arena, op_offset, 1);
                 }
             } break;
             case AllInsert: {
-                op_name = "AllInsert";
+                op_name = (ch8*)"AllInsert";
                 _helper_test_fixed_gap_arena_stress_insert(&arena, op_offset, op_text, op_length);
             } break;
             case AllRemove: {
-                op_name = "AllRemove";
+                op_name = (ch8*)"AllRemove";
                 _helper_test_fixed_gap_arena_stress_remove(&arena, op_offset, op_length);
             } break;
             default:
@@ -1096,6 +1155,7 @@ test_document()
     test_document_insert_edit();
     test_document_insert();
     test_document_load();
+    test_document_save();
 //    test_string();
 //    test_fixed_gap_buffer();
 }

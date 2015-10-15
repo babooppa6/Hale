@@ -23,19 +23,19 @@ namespace hale {
 
 namespace hale {
 
-template<>
-CodecReturn
-decode<Encoding::UTF8>(u8 **in, u8 *in_, u16 **out, u16 *out_, CodecState *s)
-{
-    return codec<Encoding::UTF8, Encoding::Hale>(in, in_, out, out_, s);
-}
+//template<>
+//CodecReturn
+//decode<Encoding::UTF8>(ch8 **in, ch8 *in_, ch16 **out, ch16 *out_, CodecState *s)
+//{
+//    return codec<Encoding::UTF8, Encoding::Hale>(in, in_, out, out_, s);
+//}
 
-template<>
-CodecReturn
-encode<Encoding::UTF8>(u16 **in, u16 *in_, u8 **out, u8 *out_, CodecState *s)
-{
-    return codec<Encoding::Hale, Encoding::UTF8>(in, in_, out, out_, s);
-}
+//template<>
+//CodecReturn
+//encode<Encoding::UTF8>(ch16 **in, ch16 *in_, ch8 **out, ch8 *out_, CodecState *s)
+//{
+//    return codec<Encoding::Hale, Encoding::UTF8>(in, in_, out, out_, s);
+//}
 
 #if 0
 template<>

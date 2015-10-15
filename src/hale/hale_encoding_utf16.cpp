@@ -1,8 +1,8 @@
+#include "hale_encoding_mib.h"
+
 namespace hale {
 
-template<>
-inline u16*
-utf32_from<Encoding::UTF16LE, u16>(CodecState *s, u16 *in)
+UTF32_FROM(Encoding::UTF16LE)
 {
     u32 unit = *in;
 
@@ -28,9 +28,7 @@ utf32_from<Encoding::UTF16LE, u16>(CodecState *s, u16 *in)
 //
 //
 
-template<>
-inline u16*
-utf32_to<Encoding::UTF16LE, u16>(CodecState *s, u16 *out)
+UTF32_TO(Encoding::UTF16LE)
 {
     if (s->codepoint & ~0xFFFF) {
         *out++ = HALE_UTF16_SUR_H(s->codepoint);

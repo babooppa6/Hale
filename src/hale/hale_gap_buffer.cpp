@@ -601,10 +601,10 @@ gap_buffer_dump(GapBuffer *buffer, Vector<ch> *string)
     }
 
     if (buffer->gap_start == buffer->gap_end) {
-        vector_push(string, L'|');
+        vector_push(string, (ch16)'|');
     } else {
         for (; i < buffer->gap_end; i++) {
-            vector_push(string, L'#');
+            vector_push(string, (ch16)'#');
         }
     }
 
@@ -614,7 +614,7 @@ gap_buffer_dump(GapBuffer *buffer, Vector<ch> *string)
     }
 
     for (; i < buffer->capacity; i++) {
-        vector_push(string, L'-');
+        vector_push(string, (ch16)'-');
     }
 
     // vector_push(string, (ch)0);

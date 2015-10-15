@@ -8,7 +8,8 @@ CONFIG += c++11
 
 DEFINES += "ONIG_EXTERN=extern"
 DEFINES += __PROJECT__=\\\"$$PWD/\\\"
-DEFINES += __WPROJECT__=L\\\"$$PWD/\\\"
+#DEFINES += __WPROJECT__=L\\\"$$PWD/\\\"
+#DEFINES += __uPROJECT__=\\\"$$PWD/\\\"
 win32: RC_FILE = $${PWD}/app.rc
 
 unix: {
@@ -120,7 +121,9 @@ HEADERS += \
     hale_util.h \
     hale_platform_win32.h \
     hale_encoding.h \
-    hale_encoding_mib.h
+    hale_encoding_mib.h \
+    hale_helper_file.h \
+    hale_custom.h
 
 SOURCES += \
     main.cpp \

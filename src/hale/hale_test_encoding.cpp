@@ -8,12 +8,12 @@ namespace hale {
 hale_internal void
 test_utf8_decoder_speed()
 {
-    u8 source[16384];
-    u16 destination[16384];
+    ch8 source[16384];
+    ch16 destination[16384];
 
     memi s = 0;
     File in;
-    if (open(&in, __WPROJECT__ L"tests/encoding/utf8_greek_1.txt", File::Read))
+    if (open(&in, (ch8*)(__PROJECT__ "tests/encoding/utf8_greek_1.txt"), File::Read))
     {
         s = read(&in, source, hale_array_count(source));
         close(&in);
@@ -24,24 +24,24 @@ test_utf8_decoder_speed()
     }
 
     CodecReturn cr;
-    Decode d;
+    Codec<Encoding::UTF8, Encoding::Hale> c;
 
-    d.s = {};
+    c.s = {};
 
-    d.out  = destination;
-    d.out_ = destination + hale_array_count(destination);
-    d.in  = source;
-    d.in_ = source + s;
+    c.out  = destination;
+    c.out_ = destination + hale_array_count(destination);
+    c.in  = source;
+    c.in_ = source + s;
 
     qDebug() << "begin";
     {
         HALE_PERFORMANCE_TIMER(decoder_time);
         for (int i = 0; i < 100000; i++)
         {
-            cr = decode<Encoding::UTF8>(&d);
-            d.out  = destination;
-            d.in   = source;
-            d.s    = {};
+            cr = codec(&c);
+            c.out  = destination;
+            c.in   = source;
+            c.s    = {};
         }
     }
     qDebug() << "end";
@@ -52,21 +52,21 @@ test_utf8_decoder_speed()
 //
 //
 
-#define _test_decoder(decoder)\
-    Decode d;\
+#define _test_decoder(from)\
+    Codec<from, Encoding::Hale> d;\
     d.s = {};\
-    d.out  = (u16*)destination;\
-    d.out_ = (u16*)(destination + (hale_array_count(destination)));\
-    d.in  = (u8*)&source;\
-    d.in_ = (u8*)&source + (hale_array_count(source));\
-    CodecReturn e = decoder(&d)
+    d.out  = (ch16*)destination;\
+    d.out_ = (ch16*)(destination + (hale_array_count(destination)));\
+    d.in  = (ch8*)&source;\
+    d.in_ = (ch8*)&source + (hale_array_count(source));\
+    CodecReturn e = codec(&d)
 
 hale_internal void
 test_utf8_decoder_new_lines()
 {
-    {   u16 destination[] = {0, 0, 0, 0, 0, 0, 0, 0};
-        u8  source[] = {'\n','\r','\r','\n'};
-        _test_decoder(decode<Encoding::UTF8>);
+    {   ch16 destination[] = {0, 0, 0, 0, 0, 0, 0, 0};
+        ch8  source[] = {'\n','\r','\r','\n'};
+        _test_decoder(Encoding::UTF8);
         hale_test(d.in  == source + 4);
         hale_test(d.out == destination + 3);
         hale_test(e     == CodecReturn::InputPending);
@@ -84,9 +84,9 @@ test_utf8_decoder_new_lines()
 hale_internal void
 test_utf8_decoder_tiny_buffers()
 {
-    {   u16 destination[] = {0, 0, 0};
-        u8  source[] = {'a'};
-        _test_decoder(decode<Encoding::UTF8>);
+    {   ch16 destination[] = {0, 0, 0};
+        ch8  source[] = {'a'};
+        _test_decoder(Encoding::UTF8);
         hale_test(d.in  == source + 1);
         hale_test(d.out == destination + 1);
         hale_test(e    == CodecReturn::InputPending);
@@ -94,9 +94,9 @@ test_utf8_decoder_tiny_buffers()
         hale_test(destination[1] == 0);
     }
 
-    {   u16 destination[] = {0, 0};
-        u8  source[] = {0xC2, 0xA2};
-        _test_decoder(decode<Encoding::UTF8>);
+    {   ch16 destination[] = {0, 0};
+        ch8  source[] = {0xC2, 0xA2};
+        _test_decoder(Encoding::UTF8);
         hale_test(d.in  == source + 2);
         hale_test(d.out == destination + 1);
         hale_test(e    == CodecReturn::OutputUsed);
@@ -104,9 +104,9 @@ test_utf8_decoder_tiny_buffers()
         hale_test(destination[1] == 0);
     }
 
-    {   u16 destination[] = {0, 0};
-        u8  source[] = {0xE2, 0x82, 0xAC};
-        _test_decoder(decode<Encoding::UTF8>);
+    {   ch16 destination[] = {0, 0};
+        ch8  source[] = {0xE2, 0x82, 0xAC};
+        _test_decoder(Encoding::UTF8);
         hale_test(d.in  == source + 3);
         hale_test(d.out == destination + 1);
         hale_test(e    == CodecReturn::OutputUsed);
@@ -115,9 +115,9 @@ test_utf8_decoder_tiny_buffers()
     }
 
 
-    {   u16 destination[] = {0, 0};
-        u8  source[] = {0xF0, 0x90, 0x8D, 0x88};
-        _test_decoder(decode<Encoding::UTF8>);
+    {   ch16 destination[] = {0, 0};
+        ch8  source[] = {0xF0, 0x90, 0x8D, 0x88};
+        _test_decoder(Encoding::UTF8);
         hale_test(d.in  == source + 4);
         hale_test(d.out == destination + 2);
         hale_test(e    == CodecReturn::OutputUsed);
@@ -131,9 +131,9 @@ test_utf8_decoder_tiny_buffers()
 
 
     // Partial destination
-    {   u16 destination[] = {0, 0};
-        u8  source[] = {'a', 0xF0, 0x90, 0x8D, 0x88};
-        _test_decoder(decode<Encoding::UTF8>);
+    {   ch16 destination[] = {0, 0};
+        ch8  source[] = {'a', 0xF0, 0x90, 0x8D, 0x88};
+        _test_decoder(Encoding::UTF8);
         hale_test(d.in  == source + 1);
         hale_test(d.out == destination + 1);
         hale_test(e    == CodecReturn::OutputUsed);
@@ -143,7 +143,7 @@ test_utf8_decoder_tiny_buffers()
         // Continue with new buffer.
 
         d.out = destination;
-        e = decode<Encoding::UTF8>(&d);
+        e = codec(&d);
         hale_test(d.in  == source + 5);
         hale_test(d.out == destination + 2);
         hale_test(e    == CodecReturn::OutputUsed);
@@ -152,9 +152,9 @@ test_utf8_decoder_tiny_buffers()
     }
 
     // Partial source (2+2 bytes)
-    {   u16 destination[] = {0, 0};
-        u8  source[] = {0xF0, 0x90};
-        _test_decoder(decode<Encoding::UTF8>);
+    {   ch16 destination[] = {0, 0};
+        ch8  source[] = {0xF0, 0x90};
+        _test_decoder(Encoding::UTF8);
         hale_test(d.in  == source + 2);
         hale_test(d.out == destination);
         // e wouldn't be set to success, as d.utf8.state == 36; (36/12)-1 = 3-1 = 2; 2 more characters expected.
@@ -163,10 +163,10 @@ test_utf8_decoder_tiny_buffers()
         hale_test(destination[1] == 0);
 
         // Keep D, set source to a new buffer
-        u8 source2[] = {0x8D, 0x88};
+        ch8 source2[] = {0x8D, 0x88};
         d.in  = source2;
         d.in_ = source2 + 2;
-        e = decode<Encoding::UTF8>(&d);
+        e = codec(&d);
         hale_test(d.in  == source2 + 2);
         hale_test(d.out == destination + 2);
         hale_test(e     == CodecReturn::OutputUsed);
@@ -175,9 +175,9 @@ test_utf8_decoder_tiny_buffers()
     }
 
     // Partial source (1+1+1 bytes)
-    {   u16 destination[] = {0, 0};
-        u8  source[] = {0xE2};
-        _test_decoder(decode<Encoding::UTF8>);
+    {   ch16 destination[] = {0, 0};
+        ch8  source[] = {0xE2};
+        _test_decoder(Encoding::UTF8);
         hale_test(d.in  == source + 1);
         hale_test(d.out == destination);
         hale_test(d.s.input_state == 36);
@@ -187,10 +187,10 @@ test_utf8_decoder_tiny_buffers()
         hale_test(destination[1] == 0);
 
         // Keep D, set source to a new buffer
-        u8 source2[] = {0x82};
+        ch8 source2[] = {0x82};
         d.in  = source2;
         d.in_ = source2 + 1;
-        e = decode<Encoding::UTF8>(&d);
+        e = codec(&d);
         hale_test(d.in  == source2 + 1);
         hale_test(d.out == destination);
         hale_test(d.s.input_state == 24);
@@ -199,10 +199,10 @@ test_utf8_decoder_tiny_buffers()
         hale_test(destination[0] == 0);
         hale_test(destination[1] == 0);
 
-        u8 source3[] = {0xAC};
+        ch8 source3[] = {0xAC};
         d.in  = source3;
         d.in_ = source3 + 1;
-        e = decode<Encoding::UTF8>(&d);
+        e = codec(&d);
         hale_test(d.in  == source3 + 1);
         hale_test(d.out == destination + 1);
         hale_test(e     == CodecReturn::OutputUsed);
@@ -213,10 +213,10 @@ test_utf8_decoder_tiny_buffers()
 void
 test_utf8_decoder_large_buffers()
 {
-    u8 source[128];
-    u16 destination[128];
+    ch8 source[128];
+    ch16 destination[128];
 
-    Decode d;
+    Codec<Encoding::UTF8, Encoding::Hale> d;
     d.s = {};
 
     d.out  = destination;
@@ -231,8 +231,8 @@ test_utf8_decoder_large_buffers()
 
     File in;
     File out;
-    hale_assert(open(&in,  __WPROJECT__ L"tests/encoding/utf8_greek_1.txt", File::Read));
-    hale_assert(open(&out, __WPROJECT__ L"tests/encoding/hale_greek_1.txt", File::Write));
+    hale_assert(open(&in,  (ch8*)(__PROJECT__ "tests/encoding/utf8_greek_1.txt"), File::Read));
+    hale_assert(open(&out, (ch8*)(__PROJECT__ "tests/encoding/hale_greek_1.txt"), File::Write));
     write(&out, (u8*)"\xFF\xFE", 2);
     for (;;)
     {
@@ -246,7 +246,7 @@ test_utf8_decoder_large_buffers()
             d.in_ = d.in + s;
         }
 
-        cr = decode<Encoding::UTF8>(&d);
+        cr = codec(&d);
 
 
         switch (cr)
@@ -280,30 +280,30 @@ test_utf8_decoder_large_buffers()
 void
 test_utf_boundaries()
 {
-    u8 source[4096] = {};
-    u16 destination[4096] = {};
-    u16 reference[4096] = {};
+    ch8 source[4096] = {};
+    ch16 destination[4096] = {};
+    ch16 reference[4096] = {};
 
-    u8  *in   = source;
-    u8  *in_  = in;
+    ch8  *in   = source;
+    ch8  *in_  = in;
 
-    u16 *out  = destination;
-    u16 *out_ = out + hale_array_count(destination);
+    ch16 *out  = destination;
+    ch16 *out_ = out + hale_array_count(destination);
 
-    u16 *ref  = reference;
-    u16 *ref_ = ref;
+    ch16 *ref  = reference;
+    ch16 *ref_ = ref;
 
     File inf;
-    hale_assert(open(&inf, __WPROJECT__ L"tests/encoding/utf8.txt", File::Read));
+    hale_assert(open(&inf, (ch8*)(__PROJECT__ "tests/encoding/utf8.txt"), File::Read));
     seek(&inf, 3);
     in_ += read(&inf, in, hale_array_count(source));
     close(&inf);
 
     CodecState s = {};
-    auto cr = decode<Encoding::UTF8>(&in, in_, &out, out_, &s);
+    auto cr = codec<Encoding::UTF8, Encoding::Hale>(&in, in_, &out, out_, &s);
     hale_assert(cr == CodecReturn::InputPending);
 
-    hale_assert(open(&inf, __WPROJECT__ L"tests/encoding/utf16le.txt", File::Read));
+    hale_assert(open(&inf,(ch8*)(__PROJECT__ "tests/encoding/utf16le.txt"), File::Read));
     seek(&inf, 2);
     ref_ += read(&inf, ref, hale_array_count(reference) * sizeof(u16)) / sizeof(u16);
     close(&inf);
@@ -325,7 +325,7 @@ void
 write_utf32le()
 {
     File out;
-    if (open(&out, __WPROJECT__ L"tests/encoding/utf32le.txt", File::Write))
+    if (open(&out, (ch8*)(__PROJECT__ "tests/encoding/utf32le.txt"), File::Write))
     {
 #if 0
         // Full 31-bit.
