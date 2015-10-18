@@ -18,7 +18,7 @@
 #include "hale_test_encoding.cpp"
 
 #define TEST 1
-
+#if 0
 #if TEST
 int main(int argc, char *argv[])
 {
@@ -52,4 +52,5 @@ int main(int argc, char *argv[])
     // onig_end();
     return ret;
 }
+#endif
 #endif

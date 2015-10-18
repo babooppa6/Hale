@@ -5,6 +5,31 @@
 
 namespace hale {
 
+void
+win32_print_error(const char *context)
+{
+    LPVOID lpMsgBuf;
+    DWORD dw = GetLastError();
+
+    FormatMessage(
+        FORMAT_MESSAGE_ALLOCATE_BUFFER |
+        FORMAT_MESSAGE_FROM_SYSTEM,
+        NULL,
+        dw,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPTSTR) &lpMsgBuf,
+        0, NULL);
+
+    platform.debug_print_0_8((ch8*)context);
+    platform.debug_print_0_8((ch8*)" ");
+    platform.debug_print_0_16((ch16*)lpMsgBuf);
+
+//	INO_LOG(_T("%s: %s\n"), caller_str, lpMsgBuf);
+    // ::MessageBox(NULL, (LPCWSTR)lpMsgBuf, _T("Win32 API Error Log"), MB_OK);
+
+    LocalFree(lpMsgBuf);
+}
+
 void *
 win32_reserve_memory(memi size)
 {
@@ -166,38 +191,6 @@ HALE_PLATFORM_GET_FILE_SIZE_32(win32_get_file_size_32)
 //
 //
 
-//#include <QFile>
-//#include <QTextStream>
-
-//HALE_PLATFORM_READ_TEXT_FILE(win32_read_text_file)
-//{
-//    QFile file(QString((QChar*)path));
-//    if (file.open(QFile::ReadOnly))
-//    {
-//        QTextStream stream(&file);
-//        stream.setAutoDetectUnicode(true);
-//        stream.setCodec("UTF-8");
-//        writer->size = file.size();
-
-//        int first = 1;
-//        while (!stream.atEnd())
-//        {
-//            QString string = stream.read(4096);
-//            if (first) {
-//                writer->encoding = stream.codec()->mibEnum();
-//                first = 0;
-//            }
-//            if (string.length() != 0) {
-//                writer->write(writer, (ch*)string.data(), string.length());
-//            }
-//        }
-
-//        file.close();
-//        return true;
-//    }
-//    return false;
-//}
-
 #include <string>
 
 HALE_PLATFORM_DEBUG_PRINT_N_16(win32_debug_print_N_16)
@@ -221,6 +214,8 @@ HALE_PLATFORM_DEBUG_PRINT_0_8(win32_debug_print_0_8)
 {
     OutputDebugStringA((LPCSTR)string);
 }
+
+// TODO: Move to main?
 
 Platform::Platform()
 {

@@ -297,7 +297,7 @@ read_undo(DocumentEdit *edit, QDataStream &s, s32 event, b32 redo)
     switch (event)
     {
     case Document::UndoEvent_Insert:
-        document_remove(edit, position, length);
+        document_abner(edit, position, length);
         break;
     case Document::UndoEvent_Remove:
         s >> text;
@@ -541,7 +541,7 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
 }
 
 void
-document_remove(DocumentEdit *edit, DocumentPosition position, memi length)
+document_abner(DocumentEdit *edit, DocumentPosition position, memi length)
 {
     hale_unused(edit);
     hale_unused(position);

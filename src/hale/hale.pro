@@ -8,7 +8,7 @@ CONFIG += c++11
 
 DEFINES += "ONIG_EXTERN=extern"
 DEFINES += __PROJECT__=\\\"$$PWD/\\\"
-#DEFINES += __WPROJECT__=L\\\"$$PWD/\\\"
+DEFINES += __WPROJECT__=L\\\"$$PWD/\\\"
 #DEFINES += __uPROJECT__=\\\"$$PWD/\\\"
 win32: RC_FILE = $${PWD}/app.rc
 
@@ -123,7 +123,12 @@ HEADERS += \
     hale_encoding.h \
     hale_encoding_mib.h \
     hale_helper_file.h \
-    hale_custom.h
+    hale_custom.h \
+    hale_platform_win32_ui.h \
+    hale_memory.h \
+    hale_math.h \
+    hale_platform_win32_gdi.h \
+    hale_platform_win32_dx.h
 
 SOURCES += \
     main.cpp \
@@ -199,7 +204,10 @@ SOURCES += \
     hale_test_encoding_referential.cpp \
     hale_encoding_utf8.cpp \
     hale_encoding_hale.cpp \
-    hale_encoding_utf16.cpp
+    hale_encoding_utf16.cpp \
+    hale_platform_win32_ui.cpp \
+    hale_platform_win32_gdi.cpp \
+    hale_platform_win32_dx.cpp
 
 RESOURCES += \
     app.qrc

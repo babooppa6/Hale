@@ -57,7 +57,6 @@ SOURCES += \
     enc/iso8859_16.c \
     enc/koi8.c \
     enc/koi8_r.c \
-    enc/mktable.c \
     enc/sjis.c \
     enc/unicode.c \
     enc/utf8.c \
