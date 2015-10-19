@@ -30,8 +30,9 @@ to_drect(const Rect<r32> &rect)
                        rect.max_y);
 }
 
-
-
+//
+//
+//
 
 template <class T> inline void __safe_release(T **ppT)
 {
@@ -69,10 +70,8 @@ struct ScopedCOM
 //
 
 hale_internal b32
-__app_init(App *app)
+__app_init(AppImpl *app)
 {
-    auto context = &app->context;
-
     HRESULT hr;
 
     hr = ::CoInitialize(NULL);
@@ -81,11 +80,11 @@ __app_init(App *app)
         return false;
     }
 
-    app->context.font_family = L"Fira Mono";
+    app->font_family = L"Fira Mono";
 
     HDC screen_dc = ::GetDC(0);
-    context->dpi_scale_x = ::GetDeviceCaps(screen_dc, LOGPIXELSX) / 96.0f;
-    context->dpi_scale_y = ::GetDeviceCaps(screen_dc, LOGPIXELSY) / 96.0f;
+    app->dpi_scale_x = ::GetDeviceCaps(screen_dc, LOGPIXELSX) / 96.0f;
+    app->dpi_scale_y = ::GetDeviceCaps(screen_dc, LOGPIXELSY) / 96.0f;
     ::ReleaseDC(0, screen_dc);
 
     //
@@ -94,7 +93,7 @@ __app_init(App *app)
 
     hr = D2D1CreateFactory(
                 D2D1_FACTORY_TYPE_SINGLE_THREADED,
-                &context->d_factory
+                &app->d_factory
                 );
 
     if (FAILED(hr)) {
@@ -109,7 +108,7 @@ __app_init(App *app)
     hr = DWriteCreateFactory(
                 DWRITE_FACTORY_TYPE_SHARED,
                 __uuidof(IDWriteFactory),
-                reinterpret_cast<IUnknown**>(&context->w_factory)
+                reinterpret_cast<IUnknown**>(&app->w_factory)
                 );
 
     if (FAILED(hr)) {
@@ -125,15 +124,10 @@ __app_init(App *app)
 }
 
 hale_internal void
-__app_release(App *app)
+__app_release(AppImpl *app)
 {
-    auto context = &app->context;
-    for (memi i = 0; i != context->cache.count; ++i)
-    {
-        __safe_release(&context->cache.fonts[i].d_format);
-    }
-    __safe_release(&context->d_factory);
-    __safe_release(&context->w_factory);
+    __safe_release(&app->d_factory);
+    __safe_release(&app->w_factory);
 }
 
 // ---
@@ -143,9 +137,9 @@ __app_release(App *app)
 // ---
 
 hale_internal HRESULT
-__window_create_resources(Window *window)
+__window_create_resources(WindowImpl *window)
 {
-    if (window->context.d_render_target) {
+    if (window->d_render_target) {
         return S_OK;
     }
 
@@ -156,13 +150,13 @@ __window_create_resources(Window *window)
 
     D2D1_SIZE_U size = D2D1::SizeU(rc.right, rc.bottom);
 
-    hr = window->app->context.d_factory->CreateHwndRenderTarget(
+    hr = window->app->d_factory->CreateHwndRenderTarget(
                 D2D1::RenderTargetProperties(),
                 D2D1::HwndRenderTargetProperties(
                     window->handle,
                     size
                     ),
-                &window->context.d_render_target
+                &window->d_render_target
                 );
 
     if (FAILED(hr)) {
@@ -174,9 +168,9 @@ __window_create_resources(Window *window)
     // Default shared solid brush.
     //
 
-    hr = window->context.d_render_target->CreateSolidColorBrush(
+    hr = window->d_render_target->CreateSolidColorBrush(
         D2D1::ColorF(D2D1::ColorF::White),
-        &window->context.d_brush
+        &window->d_brush
         );
 
     if (FAILED(hr)) {
@@ -188,39 +182,44 @@ __window_create_resources(Window *window)
 }
 
 hale_internal void
-__window_release_resources(Window *window)
+__window_release_resources(WindowImpl *window)
 {
-    __safe_release(&window->context.d_render_target);
+    for (memi i = 0; i != window->text_formats_count; ++i)
+    {
+        __safe_release(&window->text_formats[i]._format);
+        __safe_release(&window->text_formats[i]._brush);
+    }
+    __safe_release(&window->d_render_target);
 }
 
 hale_internal b32
-__window_init(Window *window)
+__window_init(WindowImpl *window)
 {
     __window_create_resources(window);
     return 1;
 }
 
 hale_internal void
-__window_release(Window *window)
+__window_release(WindowImpl *window)
 {
     __window_release_resources(window);
 }
 
 hale_internal void
-__window_resize(Window *window, V2u size)
+__window_resize(WindowImpl *window, V2u size)
 {
-    if (window->context.d_render_target)
+    if (window->d_render_target)
     {
         D2D1_SIZE_U s;
         s.width = size.x;
         s.height = size.y;
         // TODO(cohen): Can this fail?
-        window->context.d_render_target->Resize(s);
+        window->d_render_target->Resize(s);
     }
 }
 
 hale_internal void
-__window_paint(Window *window)
+__window_paint(WindowImpl *window)
 {
     HRESULT hr;
 
@@ -233,16 +232,11 @@ __window_paint(Window *window)
     }
 
 
-    ID2D1HwndRenderTarget* rt = window->context.d_render_target;
+    ID2D1HwndRenderTarget* rt = window->d_render_target;
     rt->BeginDraw();
-
     rt->SetTransform(D2D1::IdentityMatrix());
-
-    // TODO: Global background color configuration.
     rt->Clear(D2D1::ColorF(D2D1::ColorF::White));
-
     window_render(window);
-
     hr = rt->EndDraw();
 
     // NOTE(cohen): Has to be called if anything above fails!
@@ -250,83 +244,200 @@ __window_paint(Window *window)
         print("releasing render target");
         __window_release_resources(window);
     }
+
+    ValidateRect(window->handle, NULL);
 }
 
 //
 //
 //
 
-Font *
-make_font(AppContext *context, r32 size, Font::Weight weight, Font::Style style)
+TextFormat *
+text_format(WindowImpl *window,
+            r32 size,
+            TextFormat::Weight weight,
+            TextFormat::Style style,
+            Pixel32 color)
 {
+    TextFormat *format = NULL;
+    TextFormat *f = NULL;
     memi i;
-    for (i = 0; i < context->cache.count; ++i)
+    for (i = 0; i < window->text_formats_count; ++i)
     {
-        auto &font = context->cache.fonts[i];
+        f = &window->text_formats[i];
         // TODO: Comparing floats with epsilons.
-        if (fabs(font.size - size) <= 0.001f &&
-            font.weight == weight &&
-            font.style == style)
+        if (fabs(f->size - size) <= 0.001f &&
+            f->weight == weight &&
+            f->style == style &&
+            f->color == color)
         {
-            return &font;
+            if (f->_format) {
+                return format;
+            } else {
+                format = f;
+            }
         }
     }
 
     // Not found, create one.
 
-    if (context->cache.count == HALE_PLATFORM_WIN32_DX_MAX_FORMATS) {
-        hale_error("Too many formats.");
-        return 0;
+    if (format == NULL || format->_format == NULL)
+    {
+        if (window->text_formats_count == HALE_PLATFORM_WIN32_DX_MAX_FORMATS) {
+            hale_error("Too many formats.");
+            return 0;
+        }
+        format = &window->text_formats[window->text_formats_count];
+        *format = {};
+
+        format->weight = weight;
+        format->style = style;
+        format->size = size;
+        format->color = color;
     }
 
-    i = context->cache.count;
-
-    auto &font = context->cache.fonts[i];
-    font = {};
-    font.weight = weight;
-    font.style = style;
-    font.size = size;
-
-    DWRITE_FONT_WEIGHT font_weight = (DWRITE_FONT_WEIGHT)font.weight;
+    DWRITE_FONT_WEIGHT font_weight = (DWRITE_FONT_WEIGHT)format->weight;
     DWRITE_FONT_STRETCH font_stretch = DWRITE_FONT_STRETCH_NORMAL;
-    DWRITE_FONT_STYLE font_style = (DWRITE_FONT_STYLE)font.style;
+    DWRITE_FONT_STYLE font_style = (DWRITE_FONT_STYLE)format->style;
 
-    HRESULT hr = context->w_factory->CreateTextFormat(
-        context->font_family,
+    HRESULT hr = window->app->w_factory->CreateTextFormat(
+        window->app->font_family,
         // System font collection.
         NULL,
         font_weight,
         font_style,
         font_stretch,
-        font.size,
+        format->size,
         L"en-us",
-        &font.d_format
+        &format->_format
         );
 
     if (FAILED(hr)) {
-        win32_print_error("CreateTextFormat");
+        hale_error("CreateTextFormat");
         return 0;
     }
 
-    context->cache.count++;
+    hr = window->d_render_target->CreateSolidColorBrush(
+        to_dcolor(format->color),
+        &format->_brush
+        );
 
-    return &font;
+    if (FAILED(hr)) {
+        hale_error("CreateSolidColorBrush");
+        __safe_release(&format->_format);
+        return 0;
+    }
+
+    window->text_formats_count++;
+
+    return format;
+}
+
+b32
+text_layout(WindowImpl *window,
+            TextLayout *layout,
+            const ch16 *text, memi text_length,
+            r32 width,
+            r32 height,
+            TextFormat *base_style)
+{
+    hale_assert(text_length <= 0xFFFFffff);
+    HRESULT hr;
+
+    *layout = {};
+    layout->base = base_style;
+    hr = window->app->w_factory->CreateTextLayout(
+                (const WCHAR*)text,
+                (UINT32)text_length,
+                base_style->_format,
+                (FLOAT)width,
+                (FLOAT)height,
+                &layout->w_layout);
+
+    if (FAILED(hr)) {
+        return 0;
+    }
+
+    return 1;
 }
 
 void
-draw_text(Window *window, Rect<r32> rect, Pixel32 color, Font *font, const ch16 *text, memi text_length)
+text_layout_set_formats(WindowImpl *window,
+                        TextLayout *layout,
+                        TextFormatRange *styles,
+                        memi styles_count)
 {
-    hale_assert(font);
-    hale_assert(font->d_format);
+    HRESULT hr;
+    DWRITE_TEXT_RANGE r;
+    IDWriteTextLayout *wl = layout->w_layout;
+    TextFormatRange *s;
+    for (memi i = 0; i != styles_count; i++)
+    {
+        s = &styles[i];
 
-    auto brush = window->context.d_brush;
+        // TODO: Isn't there a better way to do this?
+        r.startPosition = s->begin;
+        r.length = s->end - s->begin;
+        hr = wl->SetFontWeight((DWRITE_FONT_WEIGHT)s->format->weight, r);
+        hale_assert(SUCCEEDED(hr));
+        hr = wl->SetFontStyle((DWRITE_FONT_STYLE)s->format->style, r);
+        hale_assert(SUCCEEDED(hr));
+        hr = wl->SetFontSize((FLOAT)s->format->size, r);
+        hale_assert(SUCCEEDED(hr));
+        layout->w_layout->SetDrawingEffect(s->format->_brush, r);
+    }
+}
 
-    brush->SetColor(to_dcolor(color));
-    window->context.d_render_target->DrawText(
+void
+text_layout_clear_formats(WindowImpl *window,
+                          TextLayout *layout)
+{
+    DWRITE_TEXT_RANGE r;
+    r.startPosition = 0;
+    r.length = -1;
+    layout->w_layout->SetFontWeight((DWRITE_FONT_WEIGHT)layout->base->weight, r);
+    layout->w_layout->SetFontStyle((DWRITE_FONT_STYLE)layout->base->style, r);
+    layout->w_layout->SetFontSize(layout->base->size, r);
+    layout->w_layout->SetDrawingEffect(layout->base->_brush, r);
+}
+
+void
+draw_text(WindowImpl *window,
+          r32 x, r32 y,
+          TextLayout *layout)
+{
+    // TODO: Use IDWriteTextLayout::Draw?
+
+    D2D1_DRAW_TEXT_OPTIONS options = D2D1_DRAW_TEXT_OPTIONS_CLIP;
+
+    window->d_render_target->DrawTextLayout({x, y},
+                                            layout->w_layout,
+                                            layout->base->_brush,
+                                            options);
+}
+
+//
+//
+//
+
+void
+draw_text(WindowImpl *window,
+          r32 x, r32 y, r32 width, r32 height,
+          TextFormat *format,
+          const ch16 *text,
+          memi text_length)
+{
+    hale_assert(format);
+    hale_assert(format->_format);
+
+    auto brush = window->d_brush;
+    brush->SetColor(to_dcolor(format->color));
+
+    window->d_render_target->DrawText(
                 (WCHAR*)text,
                 text_length,
-                font->d_format,
-                to_drect(rect),
+                format->_format,
+                D2D1::RectF(x, y, x+width, y+height),
                 brush,
                 D2D1_DRAW_TEXT_OPTIONS_NONE,
                 DWRITE_MEASURING_MODE_GDI_CLASSIC

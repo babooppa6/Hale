@@ -9,17 +9,17 @@
 namespace hale {
 
 hale_internal void
-window_render(Window *window);
+window_render(WindowImpl *window);
 
 // Required functions to be implemented in hale_platform_win32_<...>.cpp.
 
-hale_internal b32  __app_init(App *app);
-hale_internal void __app_release(App *app);
+hale_internal b32  __app_init(AppImpl *app);
+hale_internal void __app_release(AppImpl *app);
 
-hale_internal b32  __window_init(Window *window);
-hale_internal void __window_release(Window *window);
-hale_internal void __window_resize(Window *window, RECT *rc, LRESULT *lresult);
-hale_internal void __window_paint(Window *window);
+hale_internal b32  __window_init(WindowImpl *window);
+hale_internal void __window_release(WindowImpl *window);
+hale_internal void __window_resize(WindowImpl *window, RECT *rc, LRESULT *lresult);
+hale_internal void __window_paint(WindowImpl *window);
 
 }
 
@@ -46,7 +46,7 @@ window_proc(HWND handle,
                   WPARAM wparam,
                   LPARAM lparam)
 {
-    Window *window = (Window*)GetPropA(handle, "hale_window");
+    WindowImpl *window = (WindowImpl*)GetPropA(handle, "hale_window");
 
     switch (message)
     {
@@ -75,15 +75,24 @@ window_proc(HWND handle,
 }
 
 hale_internal b32
-window_init(App *app, Window *window, WNDCLASSA *window_class)
+window_init(AppImpl *app, WindowImpl *window, WNDCLASSA *window_class)
 {
     *window = {};
 
     window->app = app;
     window->handle = CreateWindowExA(0,
                                      window_class->lpszClassName,
+                                     // TODO:
+                                     // Shows as 慈敬 in the title.
+                                     // That's a bug, but slash1221 said in the chat.
+                                     // that:
+                                     //
+                                     // 慈 means charity, and 敬 means respect
+                                     // http://www.chinesetools.eu/chinese-dictionary/index.php
+                                     // http://tangorin.com/general/%E6%85%88
+
                                      "Hale",
-                                     WS_OVERLAPPEDWINDOW|WS_VISIBLE,
+                                     WS_OVERLAPPEDWINDOW,
                                      20, 20, 1280, 720,
                                      0,
                                      0,
@@ -108,19 +117,43 @@ window_init(App *app, Window *window, WNDCLASSA *window_class)
 }
 
 hale_internal void
-window_render(Window *window)
+window_render(WindowImpl *window)
 {
-    Font *font = make_font(&window->app->context, 30.0f, Font::Weight::Normal, Font::Style::Normal);
-    Rect<r32> rect;
-    rect.min = {50, 50};
-    rect.max = {200, 80};
-    Pixel32 color;
-    color.r = 0xFF;
-    color.g = 0x80;
-    color.b = 0x40;
-    color.a = 0xFF;
+    static int i = 0;
+    qDebug() << i++;
 
-    draw_text(window, rect, color, font, (ch16*)L"This is it guys <3");
+//    TextFormat *format = text_format(window,
+//                                     30.0f,
+//                                     TextFormat::Weight::Normal,
+//                                     TextFormat::Style::Normal,
+//                                     {0xFF, 0x80, 0x40, 0xFF});
+
+//    ch16 *t = (ch16*)L"This is it guys <3";
+//    draw_text(window, 50, 50, 200, 80, format, t, string_length(t));
+
+
+    TextFormat *formats[3];
+
+    formats[0] = text_format(window, 30.0f, TextFormat::Weight::Normal, TextFormat::Style::Normal, {0xFF, 0x80, 0x40, 0xFF});
+    formats[1] = text_format(window, 20.0f, TextFormat::Weight::Bold, TextFormat::Style::Normal, {0x80, 0xFF, 0x40, 0xFF});
+    formats[2] = text_format(window, 12.0f, TextFormat::Weight::Bold, TextFormat::Style::Normal, {0x00, 0x00, 0x00, 0xFF});
+
+    TextFormatRange ranges[2];
+    ranges[0].begin = 0;
+    ranges[0].end = 4;
+    ranges[0].format = formats[1];
+
+    ranges[1].begin = 5;
+    ranges[1].end = 7;
+    ranges[1].format = formats[2];
+
+    ch16 *t = (ch16*)L"This is it guys <3";
+
+    TextLayout layout = {};
+    text_layout(window, &layout, t, string_length(t), 300, 200, formats[0]);
+    text_layout_set_formats(window, &layout, ranges, hale_array_count(ranges));
+
+    draw_text(window, 50, 50, &layout);
 }
 
 // *********************************************************************************
@@ -128,6 +161,8 @@ window_render(Window *window)
 //   Main
 //
 // *********************************************************************************
+
+AppImpl g_app;
 
 int
 main(HINSTANCE instance, int argc, char *argv[])
@@ -138,10 +173,10 @@ main(HINSTANCE instance, int argc, char *argv[])
 
     running = 1;
 
-    App app = {};
-    app.instance = instance;
+    // App app = {};
+    g_app.instance = instance;
 
-    __app_init(&app);
+    __app_init(&g_app);
 
     //
     // Main window class.
@@ -151,18 +186,17 @@ main(HINSTANCE instance, int argc, char *argv[])
     ZeroMemory(&window_class, sizeof(window_class));
     window_class.style = CS_OWNDC ; //CS_HREDRAW|CS_VREDRAW;
     window_class.lpfnWndProc = window_proc;
-    window_class.hInstance = app.instance;
+    window_class.hInstance = g_app.instance;
     window_class.hCursor = LoadCursor(0, IDC_ARROW);
     window_class.lpszClassName = "HaleWindow";
 
     hale_assert(RegisterClassA(&window_class) != 0);
 
-    hale_assert(window_init(&app, &app.window[0], &window_class));
+    hale_assert(window_init(&g_app, &g_app.window[0], &window_class));
 
     // TODO: Initialize application.
-    // draw_rectangle(app.window[0], 0, 0, 50, 50, 0xFF0030);
 
-    ShowWindow(app.window[0].handle, SW_SHOW);
+    ShowWindow(g_app.window[0].handle, SW_SHOW);
 
     MSG msg = {};
     while (GetMessage(&msg, NULL, 0, 0) > 0)
@@ -175,7 +209,7 @@ main(HINSTANCE instance, int argc, char *argv[])
         }
     }
 
-    __app_release(&app);
+    __app_release(&g_app);
 
     return 0;
 }

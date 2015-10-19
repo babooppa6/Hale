@@ -1,8 +1,6 @@
 #include "hale.h"
 #include "hale_platform.h"
 
-#include <Windows.h>
-
 namespace hale {
 
 void

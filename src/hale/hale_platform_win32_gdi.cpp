@@ -78,7 +78,7 @@ draw_bitmap(Texture *target,
 }
 
 void
-draw_text(Texture *buffer, Font *font, ch16 *text, memi text_length)
+draw_text(Texture *buffer, TextFormat *font, ch16 *text, memi text_length)
 {
     s32 x = 0;
     for (memi i = 0; i != text_length; i++)
@@ -166,7 +166,7 @@ win32_framebuffer_display(Texture *buffer, HDC dc,
 // TODO: Use CreateFontA for finding another good font: (If lpszFace is NULL or empty string, GDI uses the first font that matches the other specified attributes.) To get the appropriate font on different language versions of the OS, call EnumFontFamiliesEx with the desired font characteristics in the LOGFONT structure, retrieve the appropriate typeface name, and create the font using CreateFont or CreateFontIndirect.
 
 void
-win32_fontspec_to_logfont(HDC dc, Font *spec, LOGFONTW *log_font)
+win32_fontspec_to_logfont(HDC dc, TextFormat *spec, LOGFONTW *log_font)
 {
     log_font->lfHeight = -MulDiv(spec->size, GetDeviceCaps(dc, LOGPIXELSY), 72);
     log_font->lfWidth = 0;
@@ -188,7 +188,7 @@ win32_fontspec_to_logfont(HDC dc, Font *spec, LOGFONTW *log_font)
 }
 
 b32
-font_init(Font *font, const ch16 *path, Font *spec)
+font_init(TextFormat *font, const ch16 *path, TextFormat *spec)
 {
     int fonts_added = AddFontResourceExW((LPCWSTR)path, FR_PRIVATE, 0);
     if (fonts_added == 0) {
@@ -317,7 +317,7 @@ font_init(Font *font, const ch16 *path, Font *spec)
 }
 
 void
-font_release(Font *font)
+font_release(TextFormat *font)
 {
     if (font)
     {
@@ -332,7 +332,7 @@ font_release(Font *font)
 // *********************************************************************************
 
 hale_internal b32
-__window_init(App *app, Window *window)
+__window_init(AppImpl *app, WindowImpl *window)
 {
     // TODO: Move to gdi::__window_create()
     RECT rc;

@@ -128,7 +128,8 @@ HEADERS += \
     hale_memory.h \
     hale_math.h \
     hale_platform_win32_gdi.h \
-    hale_platform_win32_dx.h
+    hale_platform_win32_dx.h \
+    hale_ui.h
 
 SOURCES += \
     main.cpp \
@@ -207,7 +208,8 @@ SOURCES += \
     hale_encoding_utf16.cpp \
     hale_platform_win32_ui.cpp \
     hale_platform_win32_gdi.cpp \
-    hale_platform_win32_dx.cpp
+    hale_platform_win32_dx.cpp \
+    hale_ui.cpp
 
 RESOURCES += \
     app.qrc
