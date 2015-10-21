@@ -127,6 +127,12 @@ document_alloc(DocumentArena *arena)
 //
 //
 
+extern void
+document_session_init(DocumentSession *session, Document *document, TextProcessor *text_processor);
+
+extern void
+document_session_release(DocumentSession *session);
+
 void
 document_init(Document *document)
 {
@@ -149,11 +155,10 @@ document_init(Document *document)
     document->indentation_size = 4;
     document->indentation_mode = IndentationMode::Spaces;
 
-    vector_init(&document->blocks);
-
     Document::Block block;
     block.end = 0;
     block.flags = 0;
+    vector_init(&document->blocks, 1);
     vector_push(&document->blocks, block);
     // vector_push(&document->block_info, (Document::Block*)NULL);
 }
@@ -168,6 +173,14 @@ document_release(Document *document)
 
     _buffer_release(&document->buffer);
     document->grammar.reset();
+
+    for (memi i = 0;
+         i < document->sessions_count;
+         ++i)
+    {
+        document_session_release(&document->sessions[i]);
+    }
+    document->sessions_count = 0;
 
     // TODO: Free sessions.
 
@@ -224,13 +237,13 @@ document_set_grammar(Document *document, QSharedPointer<Grammar> grammar)
 //    if (grammar) {
 //        ref(grammar);
 //    }
-
+//
 //    DocumentSession *session;
 //    for (memp i = 0; i < document->sessions.count; i++) {
 //        session = document->views[i];
 //        // TODO: Update the view's grammar here. (status/cache invalidation)
 //    }
-
+//
 //    if (previous) {
 //        unref(previous);
 //    }

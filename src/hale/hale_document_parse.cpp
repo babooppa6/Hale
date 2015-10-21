@@ -75,7 +75,7 @@ namespace hale {
 hale_internal void
 notify_format_changed(Document *document, memi begin, memi end)
 {
-    for (memi i = 0; i < vector_count(document->sessions); i++) {
+    for (memi i = 0; i < document->sessions_count; i++) {
         // document->sessions[i]
         // TODO: invalidate text layout in session in range [begin, end]
     }

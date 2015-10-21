@@ -1,7 +1,7 @@
 #include "hale.h"
 #include "hale_test.h"
 #include "hale_gap_buffer.h"
-#include "hale_platform.h"
+#include "hale_os.h"
 
 #define hale_gap_buffer_gap_size(g) (g->gap_end - g->gap_start)
 
@@ -39,7 +39,7 @@ ensure_capacity(GapBuffer *buffer, memi capacity)
     {
         // TODO: Align the capacity to page size.
         memi new_capacity = hale_align_up_to_page_size_t(buffer->capacity * ((capacity / buffer->capacity) + 1), sizeof(ch));
-        ch  *new_text = (ch*)platform.allocate_memory(new_capacity * sizeof(ch));
+        ch  *new_text = (ch*)platform.allocate_paged_memory(new_capacity * sizeof(ch));
         memi buffer_size = buffer->length + hale_gap_buffer_gap_size(buffer);
         buffer_move(buffer,
                     new_text, new_capacity, 0,
@@ -47,7 +47,7 @@ ensure_capacity(GapBuffer *buffer, memi capacity)
                     buffer_size
                     );
 
-        platform.deallocate_memory(buffer->text);
+        platform.deallocate_paged_memory(buffer->text);
         buffer->text = new_text;
         buffer->capacity = new_capacity;
     }
@@ -63,7 +63,7 @@ gap_buffer_init(GapBuffer *buffer, memi capacity, memi gap)
     hale_assert(capacity > 0);
     hale_assert(gap < capacity);
 
-    buffer->text = (ch*)platform.allocate_memory(capacity * sizeof(ch));
+    buffer->text = (ch*)platform.allocate_paged_memory(capacity * sizeof(ch));
     buffer->gap_start = 0;
     buffer->gap_end = gap;
     buffer->length = 0;
@@ -81,7 +81,7 @@ gap_buffer_release(GapBuffer *buffer)
 {
     hale_assert(buffer);
 
-    platform.deallocate_memory(buffer->text);
+    platform.deallocate_paged_memory(buffer->text);
     buffer->text = NULL;
 }
 
@@ -233,7 +233,7 @@ gap_buffer_insert(GapBuffer *buffer, memi insert_offset, ch *insert_text, memi i
         dst_capacity = buffer->capacity * ((dst_capacity / buffer->capacity) + 1);
         dst_capacity = hale_align_up_to_page_size_t(dst_capacity, sizeof(ch));
         // dst_capacity = buffer->capacity * ((dst_capacity / buffer->capacity) + 1);
-        ch *dst_text = (ch*)platform.allocate_memory(dst_capacity * sizeof(ch));
+        ch *dst_text = (ch*)platform.allocate_paged_memory(dst_capacity * sizeof(ch));
 
         // TODO: Special for when start == 0?
         // TODO: Special for when start == buffer_size (end of buffer)?
@@ -397,7 +397,7 @@ gap_buffer_insert(GapBuffer *buffer, memi insert_offset, ch *insert_text, memi i
             buffer->gap_end = dst_index;
         }
 
-        platform.deallocate_memory(buffer->text);
+        platform.deallocate_paged_memory(buffer->text);
         buffer->text = dst_text;
         buffer->capacity = dst_capacity;
 

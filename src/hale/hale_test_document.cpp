@@ -590,9 +590,9 @@ test_fixed_gap_buffer_move_suffix()
     // buf_move_suffix(Buf *A, memi offset, Buf *B);
 
     Buf A, B;
-    ch8 *A_begin = (ch8*)platform.allocate_memory(buf_capacity);
+    ch8 *A_begin = (ch8*)platform.allocate_paged_memory(buf_capacity);
     ch8 *A_end = A_begin + buf_capacity;
-    ch8 *B_begin = (ch8*)platform.allocate_memory(buf_capacity);
+    ch8 *B_begin = (ch8*)platform.allocate_paged_memory(buf_capacity);
     ch8 *B_end = B_begin + buf_capacity;
 
     std::basic_string<ch8> a, b, t;
@@ -740,8 +740,8 @@ test_fixed_gap_buffer_move_suffix()
 
 #undef RESET_AB
 
-    platform.deallocate_memory(buf_page_begin(&A));
-    platform.deallocate_memory(buf_page_begin(&B));
+    platform.deallocate_paged_memory(buf_page_begin(&A));
+    platform.deallocate_paged_memory(buf_page_begin(&B));
 }
 
 //

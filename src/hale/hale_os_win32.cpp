@@ -1,5 +1,5 @@
 #include "hale.h"
-#include "hale_platform.h"
+#include "hale_os.h"
 
 namespace hale {
 
@@ -44,17 +44,27 @@ win32_commit_memory(void *memory, memi size)
     hale_assert(m);
 }
 
-HALE_PLATFORM_ALLOCATE_MEMORY(win32_allocate_memory)
+HALE_PLATFORM_ALLOCATE_PAGED_MEMORY(win32_allocate_paged_memory)
 {
     void *memory = ::VirtualAlloc(0, size, MEM_RESERVE|MEM_COMMIT, PAGE_READWRITE);
     hale_assert(memory);
     return memory;
 }
 
-HALE_PLATFORM_DEALLOCATE_MEMORY(win32_deallocate_memory)
+HALE_PLATFORM_DEALLOCATE_PAGED_MEMORY(win32_deallocate_paged_memory)
 {
     hale_assert(memory);
     ::VirtualFree(memory, 0, MEM_RELEASE);
+}
+
+HALE_PLATFORM_REALLOCATE_PAGED_MEMORY(win32_reallocate_paged_memory)
+{
+    hale_not_tested;
+    hale_assert(memory);
+    void *new_memory = win32_allocate_paged_memory(new_size);
+    CopyMemory(memory, new_memory, new_size);
+    win32_deallocate_paged_memory(memory);
+    return new_memory;
 }
 
 HALE_PLATFORM_COPY_MEMORY(win32_copy_memory)
@@ -225,8 +235,9 @@ Platform::Platform()
     page_shift = log(page_size) / log(2);
     page_mask = si.dwPageSize - 1;
 
-    allocate_memory = win32_allocate_memory;
-    deallocate_memory = win32_deallocate_memory;
+    allocate_paged_memory = win32_allocate_paged_memory;
+    deallocate_paged_memory = win32_deallocate_paged_memory;
+    reallocate_paged_memory = win32_reallocate_paged_memory;
     copy_memory = win32_copy_memory;
     move_memory = win32_move_memory;
     read_time_counter = win32_read_time_counter;

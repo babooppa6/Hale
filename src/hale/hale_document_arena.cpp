@@ -26,6 +26,9 @@ namespace hale {
 err
 document_load(Document *document, const ch8 *path)
 {
+    hale_assert(document);
+    hale_assert(path && *path);
+
     File f;
     if (open(&f, path, File::Read))
     {

@@ -1,7 +1,8 @@
 #include "hale.h"
-#include "hale_platform_win32_ui.h"
-#include "hale_platform_win32_gdi.h"
+#include "hale_os_win32_ui.h"
+#include "hale_os_win32_gdi.h"
 
+#if 0
 namespace hale {
 
 // *********************************************************************************
@@ -354,3 +355,4 @@ __window_paint()
 }
 
 } // namespace hale
+#endif
