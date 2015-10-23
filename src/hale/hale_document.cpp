@@ -7,6 +7,44 @@
 namespace hale {
 
 //
+// View notifications.
+//
+
+// TODO: Is there any way we can notify the views in less granular way? Ideally when the edit is committed? Can we keep a list of edits for that? Maybe even a fixed array that'll get "flushed" when it's full.
+
+hale_internal inline void
+_notify_views_about_block_updated(DocumentEdit *edit)
+{
+
+}
+
+hale_internal inline void
+_notify_views_about_insert(DocumentEdit *edit)
+{
+    for (memi i = 0; i != edit->document->views_count; i++) {
+        document_view_on_insert(&edit->document->views[i], edit);
+    }
+}
+
+hale_internal inline void
+_notify_views_about_blocks_abnered(DocumentEdit *edit)
+{
+
+}
+
+hale_internal inline void
+_notify_views_about_edit_begin(DocumentEdit *edit)
+{
+
+}
+
+hale_internal inline void
+_notify_views_about_edit_end(DocumentEdit *edit)
+{
+
+}
+
+//
 // DocumentEdit
 //
 
@@ -15,17 +53,17 @@ DocumentEdit::~DocumentEdit() {
 }
 
 void
-document_edit(DocumentEdit *edit, Document *document, DocumentSession *session)
+document_edit(DocumentEdit *edit, Document *document, DocumentView *session)
 {
     edit->document = document;
-    edit->session = session;
+    edit->view = session;
     edit->undo = false;
     edit->internal = session == NULL;
 
     edit->type = DocumentEdit::Insert;
     edit->block_changed = 0;
-    edit->block_list_change_first = 0;
-    edit->block_count = 0;
+    edit->blocks_changed_at = 0;
+    edit->blocks_changed_count = 0;
     edit->pos_begin.block = 0;
     edit->pos_begin.position = 0;
     edit->pos_end.block = 0;
@@ -33,14 +71,32 @@ document_edit(DocumentEdit *edit, Document *document, DocumentSession *session)
     edit->offset_begin = 0;
     edit->offset_end = 0;
     edit->undo_head = 0;
+
+    // TODO: Notify views about edit being started.
+    _notify_views_about_edit_begin(edit);
 }
 
 void
 document_commit(DocumentEdit *edit)
 {
     hale_assert(edit->document);
-    // TODO: Notify sessions about edit being commited.
+    edit->document = 0;
+
+    // TODO: Notify views about edit being commited.
+    _notify_views_about_edit_end(edit);
 }
+
+// TODO: Think this through.
+
+//void
+//document_discard(DocumentEdit *edit)
+//{
+//    hale_assert(edit->document);
+//    edit->document = 0;
+
+//    // TODO: Notify views about edit being commited.
+//    _notify_views_about_edit_discarded(edit);
+//}
 
 //
 //
@@ -127,11 +183,13 @@ document_alloc(DocumentArena *arena)
 //
 //
 
+// defined in hale_document_view.cpp
 extern void
-document_session_init(DocumentSession *session, Document *document, TextProcessor *text_processor);
+document_view_init(DocumentView *session, Document *document, TextProcessor *text_processor);
 
+// defined in hale_document_view.cpp
 extern void
-document_session_release(DocumentSession *session);
+document_view_release(DocumentView *session);
 
 void
 document_init(Document *document)
@@ -175,16 +233,17 @@ document_release(Document *document)
     document->grammar.reset();
 
     for (memi i = 0;
-         i < document->sessions_count;
+         i < document->views_count;
          ++i)
     {
-        document_session_release(&document->sessions[i]);
+        document_view_release(&document->views[i]);
     }
-    document->sessions_count = 0;
+    document->views_count = 0;
 
     // TODO: Free sessions.
 
-    // vector_free(&document->path);
+    vector_release(&document->blocks);
+    // vector_release(&document->views);
     // vector_free(&document->blocks);
     // vector_free(&document->sessions);
 }
@@ -257,7 +316,7 @@ hale_internal void
 check_edit(DocumentEdit *edit)
 {
     hale_assert(edit);
-    hale_assert(edit->session || edit->undo || edit->internal);
+    hale_assert(edit->view || edit->undo || edit->internal);
 }
 
 hale_internal void
@@ -458,38 +517,27 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
 
     edit->offset_end = edit->offset_begin + text_length;
 
-    edit->block_count = vector_count(offsets);
-    if (edit->block_count == 0) {
+    edit->blocks_changed_count = vector_count(offsets);
+
+    if (edit->blocks_changed_count == 0) {
         edit->block_changed = position.block;
-        edit->block_list_change_first = position.block;
+        edit->blocks_changed_at = position.block;
     } else if (position.position == 0) {
-        // INSERT BEFORE
-
-        // - Inserting at == 0, will result in:
-        //   - lines added 0-1 (1 line inserted before 0)
-        //   - line 1 updated (see TODO below)
-
-        // TODO(cohen): Check if the text actually changed the text of the line.
-        // - Inserting a text ending with LE won't cause the change.
-        // - Can be checked by whether there has been any text flowing to this line
-        //   checking the offset_end being inside the line.
-        // - Set block_text_change to -1 if no change has been made to the line.
+        // Inserting at the beginning of a block.
 
         if (edit->offset_begin == old_document_end) {
-            // If we're inserting at the end of the document, it's always the first line that is changed.
+            // If we're inserting at the end of the document to an empty block.
             edit->block_changed = position.block;
-            edit->block_list_change_first = position.block + 1;
+            edit->blocks_changed_at = position.block + 1;
         } else {
-            // Last line is changed.
+            // Anywhere at the block begin.
             edit->block_changed = position.block + vector_count(offsets);
-            edit->block_list_change_first = position.block;
+            edit->blocks_changed_at = position.block;
         }
-
     } else {
-        // First line is changed.
+        // Inside the block
         edit->block_changed = position.block;
-        edit->block_list_change_first = position.block + 1;
-
+        edit->blocks_changed_at = position.block + 1;
     }
 
     //
@@ -504,7 +552,7 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
 
     // Insert new blocks.
 
-    if (edit->block_count > 0)
+    if (edit->blocks_changed_count > 0)
     {
         Document::Block block;
         block.end = 0;
@@ -518,13 +566,13 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
                       block);
 
         // TODO: Insert the blocks also to the sessions.
-        for (memi i = 0; i != edit->block_count; i++) {
+        for (memi i = 0; i != edit->blocks_changed_count; i++) {
             document->blocks[position.block + i].end = offsets[i];
         }
     }
 
     // Shift the offsets.
-    for (memi i = position.block + edit->block_count;
+    for (memi i = position.block + edit->blocks_changed_count;
          i != vector_count(document->blocks);
          i++)
     {
@@ -533,6 +581,10 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
 
     edit->pos_begin = position;
     edit->pos_end = position_plus_offset(document, edit->pos_begin, text_length);
+
+
+    // Invalidate block
+    _notify_views_about_insert(edit);
 
     //
     // Undo

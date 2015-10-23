@@ -14,6 +14,14 @@
 // https://code.google.com/p/gdipp/
     // https://code.google.com/p/gdipp/source/browse/gdimm/wic_text.cpp?r=b42f70c71d7c05c8653837a842b4100babc8906c&spec=svnb42f70c71d7c05c8653837a842b4100babc8906c
 
+// Selections, rectangles, custom inline objects, custom renderers and format specifiers:
+// Background rectangles
+// - Draw using custom renderer.
+// - Use DrawGlyphRun.
+// - Pass the custom format specifier through client drawing effect pointer.
+// - http://www.charlespetzold.com/blog/2014/01/Character-Formatting-Extensions-with-DirectWrite.html
+
+
 namespace hale {
 
 //
@@ -78,7 +86,7 @@ struct ScopedCOM
 // ----------------------------------------------------------------
 
 hale_internal b32
-__os_app_init(App *app)
+__app_init(App *app)
 {
     HRESULT hr;
 
@@ -445,9 +453,7 @@ text_layout(TextProcessor *text_processor,
         return 0;
     }
 
-    DWRITE_TEXT_METRICS metrics;
-    layout->w_layout->GetMetrics(&metrics);
-    layout->height = metrics.height;
+    layout->w_layout->GetMetrics(&layout->w_metrics);
 
     return 1;
 }
@@ -470,21 +476,20 @@ text_layout_update(TextProcessor *text_processor,
 {
     if (text || layout->w_layout == NULL)
     {
+        if (layout->w_layout != NULL) {
+            __safe_release(&layout->w_layout);
+        }
         text_layout(text_processor,
                     layout,
                     text, text_length,
-                    // TODO: max_height
-                    max_width, 9999,
+                    max_width, 9999, // std::numeric_limits<r32>::infinity(),
                     format_base
                     );
     }
     else
     {
         layout->w_layout->SetMaxWidth(max_width);
-
-        DWRITE_TEXT_METRICS metrics;
-        layout->w_layout->GetMetrics(&metrics);
-        layout->height = metrics.height;
+        layout->w_layout->GetMetrics(&layout->w_metrics);
     }
 
 
@@ -528,52 +533,15 @@ text_layout_clear_formats(Window *window,
 //
 // ----------------------------------------------------------------
 
-DocumentLayout *
-document_layout(TextProcessor *text_processor, DocumentSession *session)
-{
-    Window *window = text_processor->impl.window;
-    DocumentLayout *layout = &window->document_layouts[window->document_layouts_count++];
-    *layout = {};
-
-    layout->text_processor = text_processor;
-    layout->session = session;
-    layout->scroll_block_i = 0;
-    layout->scroll_block_y = 0;
-
-    memi block_count = vector_count(session->document->blocks);
-    vector_init(&layout->impl.blocks, block_count);
-    vector_resize(&layout->impl.blocks, block_count);
-
-    return layout;
-}
-
-void
-document_layout_scroll_to(DocumentLayout *layout, r32 dx, r32 dy)
-{
-
-}
-
-void
-document_layout_set_viewport(DocumentLayout *layout, Rect<r32> viewport)
-{
-
-}
-
-void
-document_layout_invalidate(DocumentLayout *layout, memi from, memi to)
-{
-
-}
-
 hale_internal __DocumentLayout::Block*
-get_block(DocumentLayout *layout, memi block_index)
+_get_block(DocumentLayout *layout, memi block_index)
 {
     __DocumentLayout *impl = &layout->impl;
     if (vector_count(impl->blocks) == 0) {
         return NULL;
     }
 
-    DocumentSession *session = layout->session;
+    DocumentView *session = layout->session;
     Document *document = session->document;
 
     Memory<ch16, MallocAllocator> text = {};
@@ -608,7 +576,7 @@ get_block(DocumentLayout *layout, memi block_index)
         // TODO: Update the formats.
     }
 
-    r32 max_width = layout->viewport.max_x - layout->viewport.min_x;
+    r32 max_width = layout->document_rect.max_x - layout->document_rect.min_x;
     if (block->layout.w_layout == NULL ||
             text.e ||
             formats ||
@@ -633,38 +601,390 @@ get_block(DocumentLayout *layout, memi block_index)
     return block;
 }
 
+hale_internal
+inline r32
+_get_block_height(__DocumentLayout::Block *block)
+{
+    return block->layout.w_metrics.height;
+}
+
+hale_internal
+inline r32
+_get_block_height_with_layout(DocumentLayout *layout, memi i)
+{
+    return _get_block(layout, i)->layout.w_metrics.height;
+}
+
+hale_internal memi
+_find_block_for_y(DocumentLayout *layout, memi from_i, r32 from_y, r32 target_y, r32 *o_y)
+{
+    // TODO: Limit the distance, so if the block we're looking for it too far for limits of r32, it'll assert.
+    memi i = from_i;
+    r32 block_y = from_y;
+    r32 block_h;
+
+    auto blocks = &layout->impl.blocks;
+    memi block_count = vector_count(blocks);
+
+    // TODO: Remove `i` iterator, possibly replace with Block pointer iterator.
+    if (target_y > 0) {
+        for (;;)
+        {
+            block_h = _get_block_height_with_layout(layout, i);
+            if (block_y + block_h >= target_y)
+            {
+                *o_y = - (target_y - block_y);
+                return i;
+            }
+            block_y += block_h;
+            i++;
+            if (i >= block_count)
+            {
+                // TODO: Here we snap beyond the document!
+                *o_y = block_y + block_h;
+                return block_count - 1;
+            }
+        }
+    }
+    else
+    {
+        for (;;)
+        {
+            if (block_y <= target_y)
+            {
+                *o_y = - (target_y - block_y);
+                return i;
+            }
+
+            if (i == 0)
+            {
+                *o_y = hale_minimum(layout->options.padding.top, - (target_y - block_y));
+                return 0;
+            }
+            i--;
+
+//            i--;
+//            if (i < 0) {
+//                *o_y = hale_minimum(m_dv->options.padding.top(), - (target_y - block_y));
+//                return 0;
+//            }
+            block_h = _get_block_height_with_layout(layout, i);
+            block_y -= block_h;
+        }
+    }
+    *o_y = from_y; // first->y;
+    return from_i; // first->i;
+}
+
+hale_internal void
+_reset_blocks(DocumentLayout *layout, memi i, r32 y)
+{
+    memi block_count = vector_count(layout->impl.blocks);
+
+    __DocumentLayout::Block *block;
+    layout->scroll_block_first_i = i;
+    layout->scroll_block_first_y = y;
+    layout->scroll_block_last_i = i;
+
+    do {
+        block = _get_block(layout, i);
+        block->y = y;
+        // qDebug() << "Place" << i << block->y;
+        y += _get_block_height(block);
+        if (y > layout->document_rect.max_y) {
+            break;
+        }
+        i++;
+    } while (i != block_count);
+
+    layout->scroll_block_last_i = i;
+    // qDebug() << "First" << layout->scroll_block_first_i << layout->scroll_block_first_y << "Last" << i;
+    layout->impl.layout_invalid = 0;
+}
+
+hale_internal
+inline memi
+_find_block_for_y(DocumentLayout *layout, r32 delta, r32 *o_y)
+{
+    memi i = layout->scroll_block_first_i;
+    auto first = _get_block(layout, i);
+    return _find_block_for_y(layout, i, first->y, delta, o_y);
+}
+
+//
+// Public API
+//
+
+DocumentLayout *
+document_layout(TextProcessor *text_processor, DocumentView *session)
+{
+    Window *window = text_processor->impl.window;
+    DocumentLayout *layout = &window->document_layouts[window->document_layouts_count++];
+    *layout = {};
+
+    layout->text_processor = text_processor;
+    layout->session = session;
+    layout->scroll_block_first_i = 0;
+    layout->scroll_block_first_y = 0;
+    layout->impl.layout_invalid = 1;
+
+    memi block_count = vector_count(session->document->blocks);
+    vector_init(&layout->impl.blocks, block_count);
+    __DocumentLayout::Block block = {};
+    vector_insert(&layout->impl.blocks, 0, block_count, block);
+
+    return layout;
+}
+
+void
+document_layout_scroll_by(DocumentLayout *layout, r32 dx, r32 dy)
+{
+    hale_unused(dx);
+
+    r32 y = 0.0;
+    memi i = _find_block_for_y(layout, dy, &y);
+    // qDebug() << __FUNCTION__ << i << y;
+    _reset_blocks(layout, i, y);
+}
+
+void
+document_layout_set_viewport(DocumentLayout *layout, Rect<r32> viewport)
+{
+    layout->gutter_rect = viewport;
+    layout->gutter_rect.max_x = 50.0f;
+    layout->document_rect = viewport;
+    layout->document_rect.min_x = layout->gutter_rect.max_x;
+    // TODO: Only invalidate the layout to be called lazily?
+    layout->impl.layout_invalid = 1;
+    // document_layout_layout(layout);
+}
+
+void
+document_layout_on_insert(DocumentLayout *layout, DocumentEdit *edit)
+{
+    Vector<__DocumentLayout::Block> *blocks = &layout->impl.blocks;
+
+    (*blocks)[edit->block_changed].flags &= ~(__DocumentLayout::TextValid | __DocumentLayout::FormatValid);
+    if (edit->blocks_changed_count)
+    {
+        // qDebug() << (*blocks)[0].flags << (*blocks)[1].flags << (*blocks)[2].flags << (*blocks)[3].flags;
+        __DocumentLayout::Block block = {};
+        vector_insert(blocks,
+                      edit->blocks_changed_at,
+                      edit->blocks_changed_count,
+                      block);
+        // qDebug() << (*blocks)[0].flags << (*blocks)[1].flags << (*blocks)[2].flags << (*blocks)[3].flags;
+    }
+
+    layout->impl.layout_invalid = 1;
+}
+
 void
 document_layout_layout(DocumentLayout *layout)
 {
-    memi i = layout->scroll_block_i;
-    r32 y = 0;
+    if (!layout->impl.layout_invalid) {
+        return;
+    }
 
-    __DocumentLayout::Block *block;
-    do {
-        block = get_block(layout, i);
-        block->y = y;
-        y += block->layout.height;
-        i++;
-    } while ((block->y + block->layout.height) < layout->viewport.max_y);
+    _reset_blocks(layout,
+                  layout->scroll_block_first_i,
+                  layout->scroll_block_first_y);
+}
+
+hale_internal inline void
+_draw_gutter(Window *window,
+            DocumentLayout *layout,
+            __DocumentLayout::Block *block,
+            memi block_index,
+            Vector<ch16> *buffer)
+{
+    to_string(buffer, block_index + 1);
+
+    // TODO: Aling the line number to the baseline of the first block's line.
+
+//    DWRITE_LINE_METRICS line_metrics[1];
+//    UINT32 _unused;
+//    HRESULT hr = block->layout.w_layout->GetLineMetrics(line_metrics, 1, &_unused);
+
+
+//    DWRITE_HIT_TEST_METRICS metrics;
+//    FLOAT px, py;
+//    block->layout.w_layout->HitTestTextPosition(0,
+//                                                FALSE,
+//                                                &px, &py,
+//                                                &metrics);
+
+//    DWRITE_LINE_SPACING_METHOD method;
+//    FLOAT spacing, baseline;
+//    block->layout.w_layout->GetLineSpacing(&method, &spacing, &baseline);
+
+//    block->layout.w_layout->SetLineSpacing(DWRITE_LINE_SPACING_METHOD_UNIFORM, )
+
+    r32 text_y = block->y;
+    r32 text_min_x = layout->gutter_rect.min_x + layout->gutter_options.padding.left;
+    r32 text_max_x = layout->gutter_rect.max_x - layout->gutter_options.padding.right;
+    r32 text_width = text_max_x - text_min_x;
+    r32 text_height = _get_block_height(block);
+
+    draw_text(window,
+              text_min_x, text_y,
+              text_width,
+              text_height,
+              layout->gutter_options.text_format,
+              vector_begin(buffer),
+              vector_count(buffer)
+              );
+
+    vector_clear(buffer);
 }
 
 void
-document_layout_draw(Window *window, DocumentLayout *layout, r32 x, r32 y)
+document_layout_draw(Window *window, DocumentLayout *layout)
 {
     document_layout_layout(layout);
 
-    memi i = layout->scroll_block_i;
+    Vector<ch16> buffer;
+    vector_init(&buffer, 10);
+
+    memi i = layout->scroll_block_first_i;
     // r32 y = layout->viewport.min_y + layout->scroll_block_y;
     __DocumentLayout::Block *block;
-    block = get_block(layout, i);
-    while (block && (block->y + block->layout.height) < layout->viewport.max_y)
+    while (i != (layout->scroll_block_last_i+1))
     {
         // TODO: Draw selections.
-        draw_text(window, x, block->y, &block->layout);
+        // TODO: Maybe not use block->y directly, but use the document_rect to shift it?
+        block = _get_block(layout, i);
+        // qDebug() << "Draw" << i << block->y;
+        draw_text(window, layout->document_rect.min_x, block->y, &block->layout);
+        _draw_gutter(window, layout, block, i, &buffer);
         // TODO: Draw cursors and selections.
-        block = get_block(layout, ++i);
+        i++;
+    }
+
+    vector_release(&buffer);
+}
+
+void
+document_layout_draw_cursor(Window *window, DocumentLayout *layout, DocumentPosition position)
+{
+    // TODO: Implement the blinking timer on the window (or even the app),
+    // so it's shared accross the application.
+
+    // TODO: Check if the cursor is still within the viewport (maybe do that in caller?)
+    __DocumentLayout::Block *block = _get_block(layout, position.block);
+
+    Rect<r32> rect;
+
+    DWRITE_HIT_TEST_METRICS metrics;
+    FLOAT px, py;
+    HRESULT hr = block->layout.w_layout->HitTestTextPosition(position.position,
+                                                             FALSE,
+                                                             &px, &py,
+                                                             &metrics);
+
+    if (FAILED(hr)) {
+        hale_error("HitTestTextPosition");
+        return;
+    }
+
+    rect.min_x = layout->document_rect.min_x + metrics.left;
+    rect.min_y = layout->document_rect.min_y + metrics.top;
+    rect.max_x = layout->document_rect.min_x + metrics.left + metrics.width;
+    rect.max_y = layout->document_rect.min_y + metrics.top + metrics.height;
+
+    rect.min_y += block->y;
+    rect.max_y += block->y;
+
+    rect.min_x = rect.min_x - 1;
+    rect.max_x = rect.min_x + 2;
+
+    draw_rectangle(window,
+                   rect.min_x, rect.min_y,
+                   rect.max_x, rect.max_y,
+                   {0xFF, 0xFF, 0xFF, 0x80});
+}
+
+// TODO: Change this API to accept multiple positions and anchors (DocumentCursor)
+//       so it can do the job in batches.
+
+void
+document_layout_get_cursor(DocumentLayout *layout,
+                           DocumentLayoutGetCursor which,
+                           DocumentPosition *position,
+                           r32 *anchor)
+{
+    Document *document = layout->session->document;
+
+    switch (which)
+    {
+
+
+    //-----------------------------------------------------------------------------------------
+    case DocumentLayoutGetCursor::NextCharacter: {
+    //-----------------------------------------------------------------------------------------
+
+        memi length = document_block_length_without_le(document,
+                                                       position->block);
+        if (position->position == length) {
+            if (position->block != (vector_count(document->blocks)-1)) {
+                position->block++;
+                position->position = 0;
+            }
+            return;
+        }
+
+        DWRITE_HIT_TEST_METRICS metrics;
+        FLOAT px, py;
+        __DocumentLayout::Block *block = _get_block(layout, position->block);
+        HRESULT hr = block->layout.w_layout->HitTestTextPosition(position->position,
+                                                                 (BOOL)TRUE,
+                                                                 &px, &py,
+                                                                 &metrics);
+
+        if (FAILED(hr)) {
+            position->position++;
+            return;
+        }
+        *anchor = px;
+        position->position += metrics.length;
+    } break;
+
+
+    //-----------------------------------------------------------------------------------------
+    case DocumentLayoutGetCursor::PreviousCharacter: {
+    //-----------------------------------------------------------------------------------------
+
+        if (position->position == 0) {
+            if (position->block != 0) {
+                position->block--;
+                position->position = document_block_length_without_le(document,
+                                                                      position->block);
+            }
+            return;
+        }
+
+        position->position--;
+
+        __DocumentLayout::Block *block = _get_block(layout, position->block);
+
+        DWRITE_HIT_TEST_METRICS metrics;
+        FLOAT px, py;
+        HRESULT hr;
+
+        hr = block->layout.w_layout->HitTestTextPosition(position->position,
+                                                         (BOOL)FALSE,
+                                                         &px, &py,
+                                                         &metrics);
+        if (FAILED(hr)) {
+            return;
+        }
+
+        *anchor = px;
+        position->position = metrics.textPosition;
+    } break;
     }
 }
+
 
 // ----------------------------------------------------------------
 //
@@ -713,6 +1033,18 @@ draw_text(Window *window,
 //
 //
 //
+
+void
+draw_rectangle(Window *window,
+               r32 min_x, r32 min_y, r32 max_x, r32 max_y,
+               Color32 color)
+{
+    __Window *impl = &window->impl;
+    impl->d_brush->SetColor(to_dcolor(color));
+    impl->d_render_target->FillRectangle(D2D1::RectF(min_x, min_y, max_x, max_y),
+                                         impl->d_brush);
+}
+
 
 void
 draw_rectangle(Window *window,

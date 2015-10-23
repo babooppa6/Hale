@@ -173,7 +173,7 @@ test_buffer_stress_performance()
             insert_offset = memi((r32)qt_string_buffer.length() * r2);
 
             for (memi k = 0; k < insert_length; k++) {
-                qt_string_buffer.insert(insert_offset + k, insert_text[k]);
+                qt_string_buffer.insert((int)insert_offset + k, insert_text[k]);
             }
         }
     }
@@ -310,13 +310,13 @@ test_document_edit()
     DocumentEdit edit;
     document_edit(&edit, &document, 0);
     hale_test(edit.document == &document);
-    hale_test(edit.session == 0);
+    hale_test(edit.view == 0);
     hale_test(edit.undo == 0);
     hale_test(edit.internal == 1);
     hale_test(edit.type == DocumentEdit::Insert);
     hale_test(edit.block_changed == 0);
-    hale_test(edit.block_list_change_first == 0);
-    hale_test(edit.block_count == 0);
+    hale_test(edit.blocks_changed_at == 0);
+    hale_test(edit.blocks_changed_count == 0);
     hale_test(edit.pos_begin.block == 0);
     hale_test(edit.pos_begin.position == 0);
     hale_test(edit.pos_end.block == 0);
@@ -338,8 +338,8 @@ test_document_insert_edit()
     document_insert(&edit, {0, 0}, "Hello");
     hale_test(edit.type == DocumentEdit::Insert);
     hale_test(edit.block_changed == 0);
-    hale_test(edit.block_list_change_first == 0);
-    hale_test(edit.block_count == 0);
+    hale_test(edit.blocks_changed_at == 0);
+    hale_test(edit.blocks_changed_count == 0);
     hale_test(edit.pos_begin.block == 0);
     hale_test(edit.pos_begin.position == 0);
     hale_test(edit.pos_end.block == 0);
@@ -350,8 +350,8 @@ test_document_insert_edit()
     document_insert(&edit, edit.pos_end, "\n");
     hale_test(edit.type == DocumentEdit::Insert);
     hale_test(edit.block_changed == 0);
-    hale_test(edit.block_list_change_first == 1);
-    hale_test(edit.block_count == 1);
+    hale_test(edit.blocks_changed_at == 1);
+    hale_test(edit.blocks_changed_count == 1);
     hale_test(edit.pos_begin.block == 0);
     hale_test(edit.pos_begin.position == 5);
     hale_test(edit.pos_end.block == 1);

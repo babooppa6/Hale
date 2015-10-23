@@ -131,8 +131,9 @@ HEADERS += \
     hale_os_win32_dx.h \
     hale_os_win32_gdi.h \
     hale_os_win32_ui.h \
-    hale_document_session.h \
-    hale_document_types.h
+    hale_document_types.h \
+    hale_document_view.h \
+    hale_math_interpolation.h
 
 SOURCES += \
     main.cpp \
@@ -199,7 +200,6 @@ SOURCES += \
     hale_fixed_gap_buffer.cpp \
     hale_print.cpp \
     hale_util.cpp \
-    hale_document_session.cpp \
     hale_document_arena.cpp \
     hale_encoding.cpp \
     hale_test_encoding.cpp \
@@ -212,7 +212,8 @@ SOURCES += \
     hale_os_win32.cpp \
     hale_os_win32_dx.cpp \
     hale_os_win32_gdi.cpp \
-    hale_os_win32_ui.cpp
+    hale_os_win32_ui.cpp \
+    hale_document_view.cpp
 
 RESOURCES += \
     app.qrc

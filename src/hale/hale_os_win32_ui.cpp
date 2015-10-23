@@ -1,6 +1,8 @@
 #include "hale.h"
 #include "hale_ui.h"
 
+#include <windowsx.h>
+
 #include <dwmapi.h>
 #pragma comment(lib, "dwmapi.lib")
 
@@ -10,7 +12,7 @@ namespace hale {
 
 // Required functions to be implemented in hale_platform_win32_<...>.cpp.
 
-hale_internal b32  __os_app_init(App *app);
+hale_internal b32  __app_init(App *app);
 hale_internal void __os_app_release(App *app);
 
 hale_internal b32  __os_window_init(Window *window);
@@ -29,7 +31,7 @@ hale_internal void __os_window_paint(Window *window);
 namespace hale {
 
 hale_internal uint8
-get_key_modifiers()
+_get_key_modifiers()
 {
     uint8 modifiers = 0;
 
@@ -55,10 +57,10 @@ struct WM_KEY_LPARAM
 };
 
 hale_internal b32
-os_app_handle_key(Window *window, UINT message, WPARAM wparam, LPARAM lparam, LRESULT *lresult)
+_app_handle_key(Window *window, UINT message, WPARAM wparam, LPARAM lparam, LRESULT *lresult)
 {
     KeyEvent e = {};
-    e.modifiers = get_key_modifiers();
+    e.modifiers = _get_key_modifiers();
 
     // WM_KEY_LPARAM *klp = (WM_KEY_LPARAM *)msg->lParam;
 
@@ -91,7 +93,7 @@ os_app_handle_key(Window *window, UINT message, WPARAM wparam, LPARAM lparam, LR
 
         case WM_CHAR:
         {
-            e.type = KeyEvent::Char;
+            e.type = KeyEvent::Text;
             e.vkey = 0;
             e.codepoint = (u32)wparam;
             *lresult = 0;
@@ -100,13 +102,14 @@ os_app_handle_key(Window *window, UINT message, WPARAM wparam, LPARAM lparam, LR
 
         case WM_UNICHAR:
         {
-            e.type = KeyEvent::Char;
+            e.type = KeyEvent::Text;
             e.vkey = 0;
             e.codepoint = (u32)wparam;
 
             *lresult = (wparam == UNICODE_NOCHAR);
         }
         break;
+
 
         default:
         {
@@ -126,11 +129,8 @@ os_app_handle_key(Window *window, UINT message, WPARAM wparam, LPARAM lparam, LR
 //
 // *********************************************************************************
 
-hale_global
-b32 running;
-
 hale_internal LRESULT CALLBACK
-os_window_proc(HWND handle,
+_window_proc(HWND handle,
                UINT message,
                WPARAM wparam,
                LPARAM lparam)
@@ -150,12 +150,25 @@ os_window_proc(HWND handle,
     case WM_CHAR:
     case WM_UNICHAR:
     {
-        if (window && os_app_handle_key(window, message, wparam, lparam, &lresult))
+        if (window && _app_handle_key(window, message, wparam, lparam, &lresult))
         {
             return lresult;
         }
     }
     break;
+
+    case WM_MOUSEWHEEL: {
+        if (window) {
+            r32 x = GET_X_LPARAM(lparam);
+            r32 y = GET_Y_LPARAM(lparam);
+            // WORD fwKeys = GET_KEYSTATE_WPARAM(wparam);
+            window->impl.wheel_delta += GET_WHEEL_DELTA_WPARAM(wparam);
+            r32 angle = (r32)window->impl.wheel_delta / 120;
+            window->impl.wheel_delta = window->impl.wheel_delta % 120;
+            window_scroll_by(window, x, y, 0, -angle);
+            return 0;
+        }
+    } break;
 
 // TODO: WM_SIZING works with the window rectangle, not the client one!!!
 //    case WM_SIZING: {
@@ -187,7 +200,10 @@ os_window_proc(HWND handle,
     } break;
 
     case WM_CLOSE: {
-        running = false;
+        if (window) {
+            // TODO: Test whether to close (last window, unsaved changes, etc.)
+            window->app->running = false;
+        }
     } break;
 
     }
@@ -196,7 +212,7 @@ os_window_proc(HWND handle,
 }
 
 hale_internal b32
-os_window_init(App *app, Window *window, WNDCLASSA *window_class)
+_window_init(App *app, Window *window, WNDCLASSA *window_class)
 {
     *window = {};
 
@@ -241,6 +257,81 @@ os_window_init(App *app, Window *window, WNDCLASSA *window_class)
     return r;
 }
 
+void
+window_invalidate(Window *window)
+{
+    InvalidateRect(window->impl.handle, NULL, FALSE);
+}
+
+//
+//
+//
+
+Animation *
+window_get_animation(Window *window, void *key)
+{
+    Animation *f;
+    for (memi i = 0; i != window->animations.count; i++)
+    {
+        f = &window->animations.e[i];
+        if (f->_key == key) {
+            return f;
+        }
+    }
+    return 0;
+}
+
+Animation *
+window_add_animation(Window *window, void *key, Animation *animation)
+{
+    hale_assert_debug(window_get_animation(window, key) == 0);
+    if (window->animations.count != hale_array_count(window->animations.e))
+    {
+        auto a = memory_insert(&window->animations, window->animations.count, 1);
+        *a = *animation;
+        a->_key = key;
+        a->elapsed = 0;
+
+        if (window->app->impl.animations_count == 0)
+        {
+            window->app->impl.animations_time = platform.read_time_counter();
+            window->app->impl.animations_count++;
+        }
+
+        return a;
+    }
+
+    return 0;
+}
+
+hale_internal void
+_run_animations(App *app, r32 dt)
+{
+    Window *window;
+    for (memi iw = 0; iw != app->windows_count; iw++)
+    {
+        window = &app->windows[iw];
+        if (window->animations.count)
+        {
+            Animation *a;
+            for (memi i = 0; i != window->animations.count; i++)
+            {
+                a = &window->animations.e[i];
+                a->elapsed += dt;
+                a->animate(clamp01(a->elapsed / a->duration), a);
+                if (a->elapsed > a->duration) {
+                    memory_remove_ordered(&window->animations, i, 1);
+                    --i;
+                    app->impl.animations_count--;
+                }
+            }
+            // TODO: the animation should invalidate the portion of the window, and here we'll just do what WM_PAINT would.
+            __os_window_paint(window);
+        }
+    }
+}
+
+
 // *********************************************************************************
 //
 //   Main
@@ -254,14 +345,13 @@ main(HINSTANCE instance, int argc, char *argv[])
     hale_unused(argc);
     hale_unused(argv);
 
-    running = 1;
-
     App *app = (App*)malloc(sizeof(App));
+    *app = {};
 
     __App *app_impl = &app->impl;
     app_impl->instance = instance;
 
-    __os_app_init(app);
+    __app_init(app);
 
     //
     // Main window class.
@@ -270,33 +360,69 @@ main(HINSTANCE instance, int argc, char *argv[])
     WNDCLASSA window_class;
     ZeroMemory(&window_class, sizeof(window_class));
     window_class.style = CS_OWNDC ; //CS_HREDRAW|CS_VREDRAW;
-    window_class.lpfnWndProc = os_window_proc;
+    window_class.lpfnWndProc = _window_proc;
     window_class.hInstance = app_impl->instance;
     window_class.hCursor = LoadCursor(0, IDC_ARROW);
     window_class.lpszClassName = "HaleWindow";
 
     hale_assert(RegisterClassA(&window_class) != 0);
 
-    hale_assert(os_window_init(app, &app->windows[0], &window_class));
+    hale_assert(_window_init(app, &app->windows[0], &window_class));
+    app->windows_count++;
 
     // TODO: Initialize application.
 
     ShowWindow(app->windows[0].impl.handle, SW_SHOW);
 
+    int exit_code = EXIT_FAILURE;
     MSG msg = {};
-    while (GetMessage(&msg, NULL, 0, 0) > 0)
-    {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
 
-        if (!running) {
-            break;
+    app->running = 1;
+    while(app->running)
+    {
+        while(PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
+        {
+            if (msg.message == WM_QUIT)
+            {
+                exit_code = (int)msg.wParam;
+                app->running = 0;
+                break;
+            }
+
+            TranslateMessage(&msg);
+            DispatchMessageA(&msg);
+        }
+
+        if (app->impl.animations_count)
+        {
+            r64 _time = platform.read_time_counter();
+            r32 dt = _time - app->impl.animations_time;
+            app->impl.animations_time = _time;
+
+            _run_animations(app, dt);
+
+            // Pom.. pom..
+            if (dt < 0.016f) {
+                Sleep((0.016f - dt) * 1000.0f);
+            }
+        } else {
+            WaitMessage();
         }
     }
 
+//    while (GetMessage(&msg, NULL, 0, 0) > 0)
+//    {
+//        TranslateMessage(&msg);
+//        DispatchMessage(&msg);
+
+//        if (!running) {
+//            break;
+//        }
+//    }
+
     __os_app_release(app);
 
-    return 0;
+    return exit_code;
 }
 
 } // namespace hale

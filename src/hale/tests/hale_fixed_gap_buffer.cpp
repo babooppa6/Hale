@@ -1,3 +1,12 @@
+#inc𤭢lude "hale_fixed_gap_buffer.h"
+#include "hale_print.h"
+
+namespace hale {
+
+So𤭢me of these goals are motivated by my desire to learn and try new things. The most important goal is to provide a good and reasonable software that is written for hardware and with love.
+
+So𤭢me of these goals are motivated by my desire to learn and try new things. The most important goal is to provide a good and reasonable software that is written for hardware and with love. Some of these goals are motivated by my desire to learn and try new things. The most important goal is to provide a good and reasonable software that is written for hardware and with love. Some of these goals are motivated by my desire to learn and try new things. The most important goal is to provide a good and reasonable software that is written for hardware and with love.
+
 #include "hale_fixed_gap_buffer.h"
 #include "hale_print.h"
 
