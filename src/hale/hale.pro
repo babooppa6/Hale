@@ -133,7 +133,8 @@ HEADERS += \
     hale_os_win32_ui.h \
     hale_document_types.h \
     hale_document_view.h \
-    hale_math_interpolation.h
+    hale_math_interpolation.h \
+    jsmn.h
 
 SOURCES += \
     main.cpp \
@@ -213,7 +214,9 @@ SOURCES += \
     hale_os_win32_dx.cpp \
     hale_os_win32_gdi.cpp \
     hale_os_win32_ui.cpp \
-    hale_document_view.cpp
+    hale_document_view.cpp \
+    hale_grammar_c.cpp \
+    jsmn.cpp
 
 RESOURCES += \
     app.qrc

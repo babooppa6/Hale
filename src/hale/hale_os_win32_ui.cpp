@@ -202,7 +202,7 @@ _window_proc(HWND handle,
     case WM_CLOSE: {
         if (window) {
             // TODO: Test whether to close (last window, unsaved changes, etc.)
-            window->app->running = false;
+            window->app->running = 0;
         }
     } break;
 
@@ -344,6 +344,10 @@ main(HINSTANCE instance, int argc, char *argv[])
     // TODO: Command line args.
     hale_unused(argc);
     hale_unused(argv);
+
+    Memory<u64> memory;
+    memory.allocate(16);
+    memory_push(&memory, 1);
 
     App *app = (App*)malloc(sizeof(App));
     *app = {};

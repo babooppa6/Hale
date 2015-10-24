@@ -45,7 +45,7 @@ namespace {
         struct Entry
         {
             GrammarRule *rule;
-            Parser::Cache cache;
+            Parser:P:Cache cache;
         };
 
         std::stack<Entry> stack;
@@ -154,7 +154,11 @@ bool Parser::match(GrammarRule *rule, Input *input, Cache *cache, Result *o_best
 
 namespace {
 
-    inline bool check_result(GrammarRule *rule, OnigRegExp *regex, OnigResult *result, Parser::Input *input, Parser::Result *o_best_result)
+    inline bool check_result(GrammarRule *rule,
+                             OnigRegExp *regex,
+                             OnigResult *result,
+                             Parser::Input *input,
+                             Parser::Result *o_best_result)
     {
         if (!o_best_result->matched() || result->begin(0) < o_best_result->result.begin(0))
         {
@@ -168,7 +172,10 @@ namespace {
         return false;
     }
 
-    inline void search_cache_insert(std::vector<OnigResult> *cache, int cache_index, bool matched, OnigResult *result)
+    inline void search_cache_insert(std::vector<OnigResult> *cache,
+                                    int cache_index,
+                                    bool matched,
+                                    OnigResult *result)
     {
         if (cache->size() <= cache_index) {
             if (cache->capacity() <= cache_index) {
@@ -186,7 +193,12 @@ namespace {
 
 }
 
-bool Parser::match(GrammarRule *rule, OnigRegExp *regex, Input *input, Cache *cache, int cache_index, Result *o_best_result)
+bool Parser::match(GrammarRule *rule,
+                   OnigRegExp *regex,
+                   Input *input,
+                   Cache *cache,
+                   int cache_index,
+                   Result *o_best_result)
 {
     bool use_cache = true;
 

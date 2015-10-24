@@ -1,10 +1,7 @@
 *.exe
 src/data/hale.ilk
 *.pdb
-*.h
-*.hpp
 *.exp
 *.ilk
 *.autosave
 *.swp
-*.txt

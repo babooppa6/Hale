@@ -62,6 +62,7 @@ https://www.refheap.com/41a61e226d06278aa004ab332
 
 To buy:
 
+- Hotline Miami 2
 - Antichamber
 - Monument Valley
 - The Floor is Jelly
@@ -87,12 +88,21 @@ d:\progs\ffmpeg\bin\ffmpeg -i "Hale (text editor) Document Rendering-v21604211.m
 
 - Debugging Linux from Visual Studio 2015 (purposelydrifting)
 	+ http://blogs.msdn.com/b/vcblog/archive/2015/04/29/debug-c-code-on-linux-from-visual-studio.aspx
+- API Trace
+	+ http://apitrace.github.io/
 - thepotatoleague SharpLapse tool, **push to ludumdare**
 	+ https://github.com/aaronhance/SharpLapse
 - http://www.landley.net/qcc/
 - Pages in document
 	+ Form feed character \f 
 	+ Also in Unicode U+21A1 ↡ downwards two headed arrow
+- Cache grind
+	+ http://sourceforge.net/projects/wincachegrind/
+
+# Miblo / Cockney accent
+
+- Peaky Blinders
+- 
 
 # Animating Caret
 

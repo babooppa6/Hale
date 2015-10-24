@@ -45,7 +45,6 @@ app_on_key_event(App *app,
     }
 }
 
-
 //
 // --
 //
@@ -109,7 +108,7 @@ window_layout(Window *window)
 void
 window_render(Window *window)
 {
-    // HALE_PERFORMANCE_TIMER(window_render);
+    HALE_PERFORMANCE_TIMER(window_render);
     Panel *panel;
     for (memi i = 0; i != window->panels_count; i++)
     {
@@ -132,14 +131,7 @@ _scroll_animate(r32 t, Animation *animation)
 {
     auto view = (DocumentView *)animation->data;
 
-    r32 p = animation->final * quadratic_ease_out(t); // sine_ease_out(t);
-    qDebug() << __FUNCTION__
-             << "elapsed" << animation->elapsed
-             << "duration" << animation->duration
-             << "t" << t
-             << "p" << p
-             << "actual" << animation->actual
-             << "delta" << p - animation->actual;
+    r32 p = animation->final * sine_ease_out(t);
 
     document_view_scroll_by(view, 0, p - animation->actual);
     animation->actual = p;
@@ -155,14 +147,11 @@ window_scroll_by(Window *window, r32 x, r32 y, r32 delta_x, r32 delta_y)
 
     // TODO: Find panel by x and y.
     Panel *panel = &window->panels[0];
-    // document_view_scroll_by(panel->document_view, delta_x, delta_y * scroll_amount);
-    // window_invalidate(window);
 
     // TODO: Store the animation with (?) the DocumentView we're scrolling in.
     void *key = &panel->document_view->layout->scroll_block_first_i;
     Animation *a = window_get_animation(window, key);
     if (a == 0) {
-        qDebug() << __FUNCTION__ << "Animation created" << scroll_amount * delta_y;
         Animation animation = {};
         animation.animate = _scroll_animate;
         animation.duration = 0.2f;
@@ -172,25 +161,11 @@ window_scroll_by(Window *window, r32 x, r32 y, r32 delta_x, r32 delta_y)
             document_view_scroll_by(panel->document_view, 0, animation.final);
         }
     } else {
-        qDebug() << __FUNCTION__ << "###################################################################### Animation reused" << scroll_amount * delta_y << a->actual;
         a->final = a->final + (delta_y * scroll_amount) - a->actual;
         a->actual = 0;
         a->duration = hale_minimum(0.2f, a->duration + 0.1f - a->elapsed);
         a->elapsed = 0;
-
-//        a->final = a->final + (delta_y * scroll_amount);
-//        a->duration = a->duration + 0.2f;
-
-        // TODO: Use additional `in` easing function here, to make the transition smoother?
     }
-
-    qDebug() << __FUNCTION__
-             << "  - a.actual" << a->actual << "\n"
-             << "  - a.final" << a->final << "\n"
-             << "  - a.elapsed" << a->elapsed << "\n"
-             << "  - a.duration" << a->duration << "\n"
-             ;
-
 }
 
 //
@@ -200,12 +175,6 @@ window_scroll_by(Window *window, r32 x, r32 y, r32 delta_x, r32 delta_y)
 void
 panel_layout(Panel *panel)
 {
-//    qDebug() << "Layout"
-//             << panel->document_session->layout->document_rect.min_x
-//             << panel->document_session->layout->document_rect.min_y
-//             << panel->document_session->layout->document_rect.max_x
-//             << panel->document_session->layout->document_rect.max_y;
-
     // TODO: Layout current view.
     document_layout_set_viewport(panel->document_view->layout,
                                  panel->client_rect);

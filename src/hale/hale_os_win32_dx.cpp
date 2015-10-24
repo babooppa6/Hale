@@ -544,7 +544,7 @@ _get_block(DocumentLayout *layout, memi block_index)
     DocumentView *session = layout->session;
     Document *document = session->document;
 
-    Memory<ch16, MallocAllocator> text = {};
+    Memory<ch16> text = {};
     TextFormatRange *formats = NULL;
     memi formats_count = 0;
 
@@ -559,7 +559,7 @@ _get_block(DocumentLayout *layout, memi block_index)
 
         memi count = document_block_length_without_le(document, block_index);
         memi begin = document_block_begin(document, block_index);
-        memory_reallocate(&text, count);
+        text.reallocate(count);
         text.count = count;
         document_text(document, begin, count, text.e, count);
 
@@ -594,7 +594,9 @@ _get_block(DocumentLayout *layout, memi block_index)
                            max_width);
     }
 
-    memory_deallocate(&text);
+    if (text.e) {
+        text.deallocate();
+    }
 
     // TODO: Invalidate session's cursor's vertical anchors if they are on this block.
 
