@@ -1,8 +1,6 @@
 #ifndef HALE_VECTOR_H
 #define HALE_VECTOR_H
 
-#include "hale.h"
-
 #include <vector>
 
 namespace hale {

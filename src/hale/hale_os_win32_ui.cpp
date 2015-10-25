@@ -3,10 +3,11 @@
 
 #include <windowsx.h>
 
-#include <dwmapi.h>
+#pragma comment(lib, "user32.lib")
 #pragma comment(lib, "dwmapi.lib")
-
 #pragma comment(lib, "Gdi32.lib")
+#pragma comment(lib, "Ole32.lib")
+#include <dwmapi.h>
 
 namespace hale {
 
@@ -433,12 +434,35 @@ main(HINSTANCE instance, int argc, char *argv[])
 
 #if 1
 
+#   ifdef HALE_STU
+
+//
+// Build with bat file.
+//
+
+int CALLBACK
+WinMain(HINSTANCE hinst,
+        HINSTANCE hint_previous,
+        LPSTR command_line,
+        int show_code)
+{
+    return hale::main(hinst, argc, argv);
+}
+
+#   else
+
+//
+// Build inside the Qt.
+//
+
 int
 main(int argc, char *argv[])
 {
     HINSTANCE hinst = GetModuleHandle(0);
     return hale::main(hinst, argc, argv);
 }
+
+#   endif
 
 #else
 

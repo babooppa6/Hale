@@ -1,6 +1,8 @@
 #include "hale_ui.h"
 #include "hale_perf.h"
 
+#include "hale_parser_c.h"
+
 namespace hale {
 
 //
@@ -56,6 +58,8 @@ window_init(Window *window)
     document_init(&document);
     // document_load(&document, (ch8*)(__PROJECT__ "tests/jquery-2.1.4.min.js"));
     document_load(&document, (ch8*)(__PROJECT__ "tests/hale_fixed_gap_buffer.cpp"));
+
+    document.parser2 = CParser();
 
     document_add_view(&document, &window->text_processor);
     Panel *panel = &window->panels[0];

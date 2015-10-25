@@ -1,9 +1,6 @@
 #include "hale_ui.h"
 #include "hale_document.h"
 
-#pragma comment(lib, "Ole32.lib")
-#pragma comment(lib, "User32.lib")
-
 #include "D2d1.h"
 #pragma comment(lib, "D2d1.lib")
 

@@ -1,6 +1,6 @@
 #include "hale_document.h"
 
-#include <QElapsedTimer>
+// #include <QElapsedTimer>
 
 namespace hale {
 
@@ -111,6 +111,7 @@ document_parse_set_head(Document *document, memi head)
 b32
 document_parse(Document *document)
 {
+#if 0
     memi head = document->parser_head;
     Parser::Stack &stack = document->parser_stack;
 
@@ -149,6 +150,9 @@ document_parse(Document *document)
         document->parser_status = Document::ParserStatus_Working;
         return true;
     }
+#else
+    return false;
+#endif
 }
 
 void

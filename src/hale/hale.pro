@@ -10,7 +10,7 @@ DEFINES += "ONIG_EXTERN=extern"
 DEFINES += __PROJECT__=\\\"$$PWD/\\\"
 DEFINES += __WPROJECT__=L\\\"$$PWD/\\\"
 #DEFINES += __uPROJECT__=\\\"$$PWD/\\\"
-win32: RC_FILE = $${PWD}/app.rc
+# win32: RC_FILE = $${PWD}/app.rc
 
 unix: {
     QMAKE_CXXF
@@ -30,7 +30,7 @@ LAGS_WARN_ON += -Wno-reorder
 
 win32 {
     DESTDIR = $${PWD}/../data
-    PRECOMPILED_HEADER = precompiled.h
+    # PRECOMPILED_HEADER = precompiled.h
 }
 
 #win32 {
@@ -39,73 +39,6 @@ win32 {
 #}
 
 HEADERS += \
-    application.h \
-    project.h \
-    document.h \
-    util.h \
-    projectmanager.h \
-    commandmanager.h \
-    grammar.h \
-    onigregexp.h \
-    parser.h \
-    tdocumentbuffer.h \
-    documenttypes.h \
-    theme.h \
-    documentparser.h \
-    mainwindow.h \
-    precompiled.h \
-    luaengine.h \
-    luautil.h \
-    luaobject.h \
-    undostream.h \
-    documenteditor.h \
-    documenteditorlayout.h \
-    shellpanel.h \
-    pty.h \
-    finderboyermoore.h \
-    configuration.h \
-    statusline.h \
-    panel.h \
-    model.h \
-    scopepath.h \
-    lua_scopepath.h \
-    enums.h \
-    lua_documentmodel.h \
-    lua_consolemodel.h \
-    consolemodel.h \
-    tlua.h \
-    tlua_table.h \
-    tlua_value.h \
-    tlua_reference.h \
-    tlua_function.h \
-    tlua_userdata.h \
-    tlua_settings.h \
-    lua_app.h \
-    tlua_qt.h \
-    tlua_lib.h \
-    frameless.h \
-    pathutil.h \
-    pathcompleter.h \
-    pathcompletioncontroller.h \
-    lua_panel.h \
-    tlua_registry.h \
-    tlua_helpers.h \
-    objectfactory.h \
-    documentmodel.h \
-    modelmetaregistry.h \
-    documentmodelmeta.h \
-    documentmodelview.h \
-    consolemodelview.h \
-    consolemodelmeta.h \
-    switchwindow.h \
-    switchcontroller.h \
-    clipboard.h \
-    completion.h \
-    lua_document.h \
-    windowheader.h \
-    option.h \
-    configurationobserver.h \
-    scopestore.h \
     hale_types.h \
     hale_vector.h \
     hale_gap_buffer.h \
@@ -134,63 +67,11 @@ HEADERS += \
     hale_document_types.h \
     hale_document_view.h \
     hale_math_interpolation.h \
-    jsmn.h
+    jsmn.h \
+    hale_document_parser.h \
+    hale_parser_c.h
 
 SOURCES += \
-    main.cpp \
-    application.cpp \
-    project.cpp \
-    document.cpp \
-    util.cpp \
-    projectmanager.cpp \
-    commandmanager.cpp \
-    grammar.cpp \
-    onigregexp.cpp \
-    parser.cpp \
-    documenttypes.cpp \
-    theme.cpp \
-    documentparser.cpp \
-    mainwindow.cpp \
-    luaengine.cpp \
-    luaobject.cpp \
-    undostream.cpp \
-    documenteditor.cpp \
-    documenteditorlayout.cpp \
-    shellpanel.cpp \
-    pty.cpp \
-    finderboyermoore.cpp \
-    configuration.cpp \
-    statusline.cpp \
-    panel.cpp \
-    model.cpp \
-    scopepath.cpp \
-    lua_scopepath.cpp \
-    lua_consolemodel.cpp \
-    lua_documentmodel.cpp \
-    consolemodel.cpp \
-    luautil.cpp \
-    tlua_settings.cpp \
-    lua_app.cpp \
-    frameless.cpp \
-    pathutil.cpp \
-    pathcompleter.cpp \
-    pathcompletioncontroller.cpp \
-    lua_panel.cpp \
-    documentmodel.cpp \
-    modelmetaregistry.cpp \
-    documentmodelmeta.cpp \
-    documentmodelview.cpp \
-    consolemodelview.cpp \
-    consolemodelmeta.cpp \
-    switchwindow.cpp \
-    switchcontroller.cpp \
-    clipboard.cpp \
-    completion.cpp \
-    lua_document.cpp \
-    windowheader.cpp \
-    option.cpp \
-    configurationobserver.cpp \
-    scopestore.cpp \
     hale_document.cpp \
     hale_gap_buffer.cpp \
     hale_document_parse.cpp \
@@ -205,23 +86,21 @@ SOURCES += \
     hale_encoding.cpp \
     hale_test_encoding.cpp \
     hale_test_encoding_referential.cpp \
-    hale_encoding_utf8.cpp \
-    hale_encoding_hale.cpp \
-    hale_encoding_utf16.cpp \
     hale_ui.cpp \
+    hale_os_win32_ui.cpp \
+    hale_document_view.cpp \
+    jsmn.cpp \
+    hale_parser_c.cpp \
+    hale_stu.cpp
+
+OTHER_FILES += \
     hale_os_darwin.cpp \
     hale_os_win32.cpp \
     hale_os_win32_dx.cpp \
     hale_os_win32_gdi.cpp \
-    hale_os_win32_ui.cpp \
-    hale_document_view.cpp \
-    hale_grammar_c.cpp \
-    jsmn.cpp
-
-RESOURCES += \
-    app.qrc
-
-OTHER_FILES += \
+    hale_encoding_utf8.cpp \
+    hale_encoding_hale.cpp \
+    hale_encoding_utf16.cpp \
     Notes.txt
 
 #

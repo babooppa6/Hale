@@ -103,7 +103,7 @@ utf32_to_hale_trusted(ch32 utf32, ch16 hale[2])
 template<>
 struct EncodingInfo<Encoding::Hale>
 {
-    typedef u16 Storage;
+    typedef ch16 Storage;
     static const memi OutputPadding = 2;
     static const memi Accept = 0;
     static const memi MultiOut = 2;

@@ -1,6 +1,8 @@
 #ifndef HALE_MATH_H
 #define HALE_MATH_H
 
+#include <cmath>
+
 namespace hale {
 
 inline b32

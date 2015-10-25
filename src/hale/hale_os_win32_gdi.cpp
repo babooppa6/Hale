@@ -1,8 +1,8 @@
+#if 0
 #include "hale.h"
 #include "hale_os_win32_ui.h"
 #include "hale_os_win32_gdi.h"
 
-#if 0
 namespace hale {
 
 // *********************************************************************************

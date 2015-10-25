@@ -1,6 +1,0 @@
-<RCC>
-    <qresource prefix="/">
-        <file>Icon.ico</file>
-        <file>images/inuaicons.ttf</file>
-    </qresource>
-</RCC>

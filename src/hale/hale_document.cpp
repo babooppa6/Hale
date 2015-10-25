@@ -2,7 +2,11 @@
 #include "hale_gap_buffer.h"
 #include "hale_document.h"
 
-#include <QDataStream>
+#define depends(f)
+
+depends("hello.h")
+
+// #include <QDataStream>
 
 namespace hale {
 
@@ -322,6 +326,7 @@ check_edit(DocumentEdit *edit)
 hale_internal void
 write_undo(DocumentEdit *edit, s32 type, memi offset, memi length)
 {
+#if 0
     if (edit->undo) {
         return;
     }
@@ -341,11 +346,13 @@ write_undo(DocumentEdit *edit, s32 type, memi offset, memi length)
 
         s << text;
     });
+#endif
 }
 
 hale_internal void
 read_undo(DocumentEdit *edit, QDataStream &s, s32 event, b32 redo)
 {
+#if 0
     int offset;
     int length;
     QString text;
@@ -376,6 +383,7 @@ read_undo(DocumentEdit *edit, QDataStream &s, s32 event, b32 redo)
         document_insert(edit, position, (ch*)text.data(), text.length());
         break;
     }
+#endif
 }
 
 hale_internal memi

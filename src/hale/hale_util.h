@@ -1,8 +1,6 @@
 #ifndef HALE_UTIL_H
 #define HALE_UTIL_H
 
-#include "hale.h"
-
 namespace hale {
 
 // TODO: Optimize `equal` (SIMD, loop unwind)

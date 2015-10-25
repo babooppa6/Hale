@@ -6,12 +6,9 @@
 #include "hale_fixed_gap_buffer.h"
 #include "hale_document_types.h"
 #include "hale_document_view.h"
-// #include "hale_ui.h"
+#include "hale_document_parser.h"
 
 #include "undostream.h"
-
-#include <QTextLayout>
-#include "parser.h"
 
 namespace hale {
 
@@ -67,6 +64,7 @@ struct Document
         memi end;
         u32 flags;
 
+#if 0
         // TODO: Use gap_buffer for tokens, as it's a structure similar to text.
         Parser::Tokens tokens;
         // TODO: We probably won't have to store whole stack per line.
@@ -75,6 +73,7 @@ struct Document
 
         // Formats are kept here in case there are multiple sessions for the document.
         QList<QTextLayout::FormatRange> formats;
+#endif
     };
 
     DocumentArena *arena;
@@ -90,7 +89,6 @@ struct Document
     // Parser
     //
 
-    QSharedPointer<Grammar> grammar;
     enum ParserStatus
     {
         ParserStatus_Done = 0x0,
@@ -99,9 +97,13 @@ struct Document
     };
 
     u32 parser_status;
-    Parser::Stack parser_stack;
     memi parser_head;
+#if 0
+    Parser::Stack parser_stack;
+    QSharedPointer<Grammar> grammar;
     Parser *parser;
+#endif
+    DocumentParser parser;
 
     FixedGapArena buffer;
     UndoStream *undo;
@@ -319,11 +321,13 @@ void document_release(Document *document);
 void document_set(DocumentEdit *edit, ch *text, memi length);
 void document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi text_length);
 void document_insert(DocumentEdit *edit, DocumentPosition *begin, DocumentPosition *end, ch *text, memi text_length);
+#ifndef HALE_STU
 inline void
 document_insert(DocumentEdit *edit, DocumentPosition position, const char *text) {
     QString string(text);
     document_insert(edit, position, (ch*)string.data(), string.length());
 }
+#endif
 
 inline void
 document_append(DocumentEdit *edit, ch *text, memi text_length) {

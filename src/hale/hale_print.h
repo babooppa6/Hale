@@ -1,8 +1,6 @@
 #ifndef HALE_PRINT
 #define HALE_PRINT
 
-#include "hale.h"
-
 namespace hale {
 
 inline void

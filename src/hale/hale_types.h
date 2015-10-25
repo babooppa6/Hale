@@ -45,9 +45,9 @@ typedef uint64 u64;
 static_assert(sizeof(wchar_t) == sizeof(u16), "wchar_t");
 static_assert(sizeof(char) == sizeof(u8), "char");
 
-typedef unsigned char     ch8;
-typedef char16_t ch16;
-typedef char32_t ch32;
+typedef u8  ch8;
+typedef u16 ch16;
+typedef u32 ch32;
 
 typedef ch16    ch;
 
