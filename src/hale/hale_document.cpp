@@ -2,12 +2,6 @@
 #include "hale_gap_buffer.h"
 #include "hale_document.h"
 
-#define depends(f)
-
-depends("hello.h")
-
-// #include <QDataStream>
-
 namespace hale {
 
 //
@@ -206,13 +200,13 @@ document_init(Document *document)
     document->indentation_mode = IndentationMode::Spaces;
     document->indentation_size = 4;
 
-    document->undo = new UndoStream(NULL);
+    // document->undo = new UndoStream(NULL);
 
     // Parser
     document->parser_status = 0;
     document->parser_head = 0;
     // vector_init(&document->parser_state.stack);
-    document->parser = new Parser();
+    // document->parser = new Parser();
 
     document->indentation_size = 4;
     document->indentation_mode = IndentationMode::Spaces;
@@ -230,11 +224,7 @@ document_release(Document *document)
 {
     hale_assert(document);
 
-    delete document->undo;
-    delete document->parser;
-
     _buffer_release(&document->buffer);
-    document->grammar.reset();
 
     for (memi i = 0;
          i < document->views_count;
@@ -268,10 +258,8 @@ document_set_indentation_mode(Document *document, IndentationMode indentation_mo
 void
 document_set_indentation_size(Document *document, u32 indentation_size)
 {
-    if (indentation_size < 1 || indentation_size > Document::MAX_INDENTATION_SIZE) {
-        qWarning() << __FUNCTION__ << "Indentation size should be in range 1 .." << Document::MAX_INDENTATION_SIZE;
-        return;
-    }
+    // qWarning() << __FUNCTION__ << "Indentation size should be in range 1 .." << Document::MAX_INDENTATION_SIZE;
+    hale_assert_input(indentation_size >= 1 && indentation_size <= Document::MAX_INDENTATION_SIZE);
 
     if (indentation_size != document->indentation_size) {
         document->indentation_size = indentation_size;
@@ -279,14 +267,14 @@ document_set_indentation_size(Document *document, u32 indentation_size)
     }
 }
 
-void
-document_set_grammar(Document *document, QSharedPointer<Grammar> grammar)
-{
-    hale_assert(grammar->rule);
-    document->grammar = grammar;
+//void
+//document_set_grammar(Document *document, QSharedPointer<Grammar> grammar)
+//{
+//    hale_assert(grammar->rule);
+//    document->grammar = grammar;
 
-    document_parse_set_head(document, 0);
-}
+//    document_parse_set_head(document, 0);
+//}
 
 //
 // Parsing
@@ -349,10 +337,10 @@ write_undo(DocumentEdit *edit, s32 type, memi offset, memi length)
 #endif
 }
 
+#if 0
 hale_internal void
 read_undo(DocumentEdit *edit, QDataStream &s, s32 event, b32 redo)
 {
-#if 0
     int offset;
     int length;
     QString text;
@@ -383,8 +371,8 @@ read_undo(DocumentEdit *edit, QDataStream &s, s32 event, b32 redo)
         document_insert(edit, position, (ch*)text.data(), text.length());
         break;
     }
-#endif
 }
+#endif
 
 hale_internal memi
 convert_and_insert(Document *document, memi offset, ch *text, memi text_length, Vector<memi> *offsets)
@@ -514,7 +502,7 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
     // TODO: emit beforeTextChanged();
 
     edit->type = DocumentEdit::Insert;
-    edit->undo_head = document->undo->writingHead();
+    // edit->undo_head = document->undo->writingHead();
     edit->offset_begin = position_to_offset(document, position);
 
     memi old_document_end = _buffer_length(document->buffer);
@@ -598,7 +586,7 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
     // Undo
     //
 
-    write_undo(edit, Document::UndoEvent_Insert, edit->offset_begin, text_length);
+    // write_undo(edit, Document::UndoEvent_Insert, edit->offset_begin, text_length);
 
     //
     // Parser

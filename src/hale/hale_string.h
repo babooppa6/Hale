@@ -1,7 +1,7 @@
 #ifndef HALE_STRING_H
 #define HALE_STRING_H
 
-// TODO: String should be able to store 0, so we cannot use str* functions.
+#include "hale_atoi.h"
 
 namespace hale {
 
@@ -58,6 +58,7 @@ string_length(const ch16 *string)
     return it - string;
 }
 
+#if 0
 inline void
 vector_insert(Vector<ch> *string, memi offset, ch *other)
 {
@@ -93,6 +94,23 @@ vector_equal(Vector<Ch> *av, const Ch *b, memi b_count)
                  b,
                  b + b_count);
 }
+#endif
+
+inline void
+memory_copy0(ch8 *destination, memi destination_count, ch8 *source)
+{
+    memi c = minimum(destination_count-1, string_length(source)+1);
+    platform.copy_memory(destination, source, c);
+    destination[c] = 0;
+}
+
+inline void
+memory_copy0(ch16 *destination, memi destination_count, ch16 *source)
+{
+    memi c = minimum(destination_count-1, string_length(source)+1);
+    platform.copy_memory(destination, source, c * sizeof(ch16));
+    destination[c] = 0;
+}
 
 //
 //
@@ -103,7 +121,7 @@ vector_equal(Vector<Ch> *av, const Ch *b, memi b_count)
 
 // http://stackoverflow.com/a/4351484
 
-#include <string>
+//#include <string>
 
 // TODO: Custom to_string, at least for ints and floats.
 //template<typename T, typename Ch>
@@ -111,11 +129,21 @@ vector_equal(Vector<Ch> *av, const Ch *b, memi b_count)
 //to_string(Vector<Ch> *string, T value);
 
 
+// https://github.com/miloyip/itoa-benchmark/tree/master/src
+
 inline void
 to_string(Vector<ch16> *string, memi value)
 {
-    std::wstring s = std::to_wstring(value);
-    vector_append(string, (ch16*)s.c_str(), s.length());
+    ch16 buffer[24];
+    ch16 *b = itoa<BranchLut, memi, ch16>(value, buffer);
+    hale_assert_debug((b-buffer) < 21);
+    vector_append(string, buffer, b - buffer);
+}
+
+inline void
+ch16_ch8(Memory<ch16> *memory, ch8 *string)
+{
+
 }
 
 } // namespace hale

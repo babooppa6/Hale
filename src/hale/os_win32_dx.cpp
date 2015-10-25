@@ -1,11 +1,11 @@
 #include "hale_ui.h"
 #include "hale_document.h"
 
-#include "D2d1.h"
-#pragma comment(lib, "D2d1.lib")
+#include <d2d1.h>
+#pragma comment(lib, "d2d1.lib")
 
-#include "Dwrite.h"
-#pragma comment(lib, "Dwrite.lib")
+#include <dwrite.h>
+#pragma comment(lib, "dwrite.lib")
 
 // Example usage:
 // https://code.google.com/p/gdipp/
@@ -657,7 +657,7 @@ _find_block_for_y(DocumentLayout *layout, memi from_i, r32 from_y, r32 target_y,
 
             if (i == 0)
             {
-                *o_y = hale_minimum(layout->options.padding.top, - (target_y - block_y));
+                *o_y = minimum(layout->options.padding.top, - (target_y - block_y));
                 return 0;
             }
             i--;

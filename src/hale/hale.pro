@@ -1,7 +1,9 @@
-QT += core gui widgets winextras # core-private gui-private
+# QT -= core #gui widgets winextras # core-private gui-private
+
+QT -= core
 
 TARGET = hale
-TEMPLATE = app
+#TEMPLATE = app
 
 CONFIG += c++11
 # CONFIG += console
@@ -60,16 +62,19 @@ HEADERS += \
     hale_ui.h \
     hale_os.h \
     hale_os_ui.h \
-    hale_os_win32.h \
-    hale_os_win32_dx.h \
-    hale_os_win32_gdi.h \
-    hale_os_win32_ui.h \
     hale_document_types.h \
     hale_document_view.h \
     hale_math_interpolation.h \
     jsmn.h \
     hale_document_parser.h \
-    hale_parser_c.h
+    hale_parser_c.h \
+    hale_atoi.h \
+    os_win32.h \
+    os_win32_dx.h \
+    os_win32_gdi.h \
+    os_win32_ui.h \
+    hale_macros.h \
+    hale_config.h
 
 SOURCES += \
     hale_document.cpp \
@@ -78,29 +83,32 @@ SOURCES += \
     hale_string.cpp \
     hale.cpp \
     hale_test.cpp \
-    hale_test_document.cpp \
     hale_fixed_gap_buffer.cpp \
     hale_print.cpp \
     hale_util.cpp \
     hale_document_arena.cpp \
     hale_encoding.cpp \
-    hale_test_encoding.cpp \
-    hale_test_encoding_referential.cpp \
     hale_ui.cpp \
-    hale_os_win32_ui.cpp \
     hale_document_view.cpp \
     jsmn.cpp \
     hale_parser_c.cpp \
-    hale_stu.cpp
+    hale_atoi.cpp \
+    hale_os_ui.cpp \
+    os_win32.cpp \
+    os_win32_dx.cpp \
+    os_win32_gdi.cpp \
+    os_win32_ui.cpp \
+    test_document.cpp \
+    test_encoding.cpp \
+    test_encoding_referential.cpp \
+    os_darwin.cpp \
+    stu.cpp \
+    _hale_encoding_hale.cpp \
+    _hale_encoding_utf16.cpp \
+    _hale_encoding_utf8.cpp \
+    hale_os.cpp
 
 OTHER_FILES += \
-    hale_os_darwin.cpp \
-    hale_os_win32.cpp \
-    hale_os_win32_dx.cpp \
-    hale_os_win32_gdi.cpp \
-    hale_encoding_utf8.cpp \
-    hale_encoding_hale.cpp \
-    hale_encoding_utf16.cpp \
     Notes.txt
 
 #

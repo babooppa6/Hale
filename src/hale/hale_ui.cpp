@@ -57,9 +57,9 @@ window_init(Window *window)
     static Document document;
     document_init(&document);
     // document_load(&document, (ch8*)(__PROJECT__ "tests/jquery-2.1.4.min.js"));
-    document_load(&document, (ch8*)(__PROJECT__ "tests/hale_fixed_gap_buffer.cpp"));
+    // document_load(&document, (ch8*)(__PROJECT__ "tests/hale_fixed_gap_buffer.cpp"));
 
-    document.parser2 = CParser();
+    document.parser = CParser();
 
     document_add_view(&document, &window->text_processor);
     Panel *panel = &window->panels[0];
@@ -167,7 +167,7 @@ window_scroll_by(Window *window, r32 x, r32 y, r32 delta_x, r32 delta_y)
     } else {
         a->final = a->final + (delta_y * scroll_amount) - a->actual;
         a->actual = 0;
-        a->duration = hale_minimum(0.2f, a->duration + 0.1f - a->elapsed);
+        a->duration = minimum(0.2f, a->duration + 0.1f - a->elapsed);
         a->elapsed = 0;
     }
 }

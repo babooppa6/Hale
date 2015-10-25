@@ -39,8 +39,6 @@ EncodingDescriptor *encoding_get()
 
 }
 
-#define HALE_CPP_INCLUDE
-#include "hale_encoding_utf8.cpp"
-#include "hale_encoding_utf16.cpp"
-#include "hale_encoding_hale.cpp"
-#undef HALE_CPP_INCLUDE
+#include "_hale_encoding_utf8.cpp"
+#include "_hale_encoding_utf16.cpp"
+#include "_hale_encoding_hale.cpp"

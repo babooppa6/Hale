@@ -54,11 +54,11 @@ document_load(Document *document, const ch8 *path)
             {
                 in  = b_in;
                 in_ = in + read(&f, b_in, hale_array_count(b_in));
-                qDebug() << "Reading" << (in_ - in) << "bytes.";
+                // qDebug() << "Reading" << (in_ - in) << "bytes.";
                 if (in_ == in) {
                     if (out - b_out) {
                         // Append the remainder.
-                        qDebug() << "Writing" << (out-b_out) << "codepoints. (remainder)";
+                        // qDebug() << "Writing" << (out-b_out) << "codepoints. (remainder)";
                         document_append(&edit, b_out, out - b_out);
                     }
                     break;
@@ -69,7 +69,7 @@ document_load(Document *document, const ch8 *path)
 
             if (cr == CodecReturn::OutputUsed)
             {
-                qDebug() << "Writing" << (out-b_out) << "codepoints.";
+                // qDebug() << "Writing" << (out-b_out) << "codepoints.";
                 document_append(&edit, b_out, out - b_out);
                 out = b_out;
             }
@@ -112,8 +112,8 @@ document_save(Document *document, const ch8 *path)
         {
             if (in == in_)
             {
-                s = hale_minimum(hale_array_count(in_buf), length);
-                qDebug() << "Reading" << (s) << "codepoints.";
+                s = minimum(hale_array_count(in_buf), length);
+                // qDebug() << "Reading" << (s) << "codepoints.";
                 document_text(document, offset, s, in_buf, s);
                 in = in_buf;
                 in_ = in_buf + s;
@@ -125,14 +125,14 @@ document_save(Document *document, const ch8 *path)
 
             if (cr == CodecReturn::OutputUsed)
             {
-                qDebug() << "Writing" << (out-out_buf) << "codepoints.";
+                // qDebug() << "Writing" << (out-out_buf) << "codepoints.";
                 write(&f, out_buf, (out - out_buf) * sizeof(EncodingInfo<Encoding::UTF8>::Storage));
                 out = out_buf;
             }
         }
 
         if (out - out_buf) {
-            qDebug() << "Writing" << (out-out_buf) << "codepoints. (remainder)";
+            // qDebug() << "Writing" << (out-out_buf) << "codepoints. (remainder)";
             write(&f, out_buf, (out - out_buf) * sizeof(EncodingInfo<Encoding::UTF8>::Storage));
         }
 

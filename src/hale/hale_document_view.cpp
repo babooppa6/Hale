@@ -36,6 +36,8 @@ document_add_view(Document *document, TextProcessor *text_processor)
     // Init.
     // TODO: A different window's text processor might be comming here.
     document_view_init(view, document, text_processor);
+
+    return view;
 }
 
 void

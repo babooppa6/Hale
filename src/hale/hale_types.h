@@ -2,8 +2,6 @@
 #define HALE_TYPES_H
 
 #include <stdint.h>
-#include <stddef.h>
-#include <limits.h>
 #include <float.h>
 
 namespace hale {
@@ -40,7 +38,7 @@ typedef uint16 u16;
 typedef uint32 u32;
 typedef uint64 u64;
 
-#define HALE_R32_MAX (std::numeric_limits<r32>::infinity())
+#define HALE_R32_MAX (FLT_MAX)
 
 static_assert(sizeof(wchar_t) == sizeof(u16), "wchar_t");
 static_assert(sizeof(char) == sizeof(u8), "char");

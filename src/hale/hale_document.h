@@ -8,8 +8,6 @@
 #include "hale_document_view.h"
 #include "hale_document_parser.h"
 
-#include "undostream.h"
-
 namespace hale {
 
 #define HALE_DOCUMENT_FORMAT_CHANGED(name) void name(memi begin, memi end)
@@ -49,8 +47,10 @@ struct Document
 
     enum UndoEvent
     {
+#if 0
         UndoEvent_Insert = UndoStream::EventType_User,
         UndoEvent_Remove,
+#endif
     };
 
     struct Block
@@ -100,13 +100,12 @@ struct Document
     memi parser_head;
 #if 0
     Parser::Stack parser_stack;
-    QSharedPointer<Grammar> grammar;
     Parser *parser;
 #endif
     DocumentParser parser;
 
     FixedGapArena buffer;
-    UndoStream *undo;
+    // UndoStream *undo;
 };
 
 //template<typename BufferT, typename UndoT>
@@ -321,7 +320,7 @@ void document_release(Document *document);
 void document_set(DocumentEdit *edit, ch *text, memi length);
 void document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi text_length);
 void document_insert(DocumentEdit *edit, DocumentPosition *begin, DocumentPosition *end, ch *text, memi text_length);
-#ifndef HALE_STU
+#if 0 // HALE_STU
 inline void
 document_insert(DocumentEdit *edit, DocumentPosition position, const char *text) {
     QString string(text);

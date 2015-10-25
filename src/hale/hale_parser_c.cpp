@@ -3,9 +3,22 @@
 
 // https://github.com/zserge/jsmn
 
-#include "oniguruma.h"
+// #include "oniguruma.h"
 
 namespace hale {
+
+enum TokenId : memi
+{
+    Root,
+
+    CommentBlockBegin,
+    CommentBlockEnd,
+    CommentBlock,
+
+    StringQuotedDoubleBegin,
+    StringQuotedDoubleEnd,
+    StringQuotedDouble,
+};
 
 struct State;
 
@@ -49,12 +62,6 @@ struct State
 // Tokens
 //
 
-memi
-token(State *S, const char *name)
-{
-    // Find whether table has a `name` recorded for top(S)->parent.
-}
-
 void
 token_add(State *S, memi ix, memi begin, memi end)
 {
@@ -65,7 +72,7 @@ token_add(State *S, memi ix, memi begin, memi end)
 }
 
 void
-token_push(State *S, memi ix, memi begin)
+token_push(State *S, memi token, memi begin)
 {
 
 }
@@ -94,10 +101,10 @@ stack_pop(State *S)
     return S->stack.pop()->parse;
 }
 
-inline Parse *
+inline StackItem *
 stack_top(State *S)
 {
-    return S->stack.e[S->stack.count - 1].parse;
+    return &S->stack.e[S->stack.count - 1];
 }
 
 //
@@ -141,19 +148,12 @@ input_match(State *S, const ch16 *needle, memi needle_length)
     return 0;
 }
 
-hale_internal b32
-input_peek(State *S, regex_t* re)
-{
-    hale_not_implemented;
-    return 0;
-}
-
 //
 //
 //
 
 hale_internal void
-push(State *S, Parse *parse, const char *token, memi b)
+push(State *S, memi token, Parse *parse, memi b)
 {
     stack_push(S, parse);
     token_push(S, token, b);
@@ -169,23 +169,6 @@ pop(State *S)
 //
 //
 //
-
-enum struct TokenId {
-    Root,
-
-    CommentBlockBegin,
-    CommentBlockEnd,
-    CommentBlock,
-
-    StringQuotedDoubleBegin,
-    StringQuotedDoubleEnd,
-    StringQuotedDouble,
-};
-
-//ch16 *scopes[] = {
-//    L"comment.block.begin",
-//    L""
-//};
 
 #if 0
 hale_internal void
@@ -219,41 +202,45 @@ _root(State *S)
 }
 #endif
 
-hale_internal void
-_comment_block(State *S)
+hale_internal b32
+_comment_block(State *S, memi ix)
 {
-    if (input_match(S, "*/", 2)) {
+    if (input_match(S, hale_u("*/"), 2)) {
         token_add(S, TokenId::CommentBlockEnd, 0, 2);
         pop(S);
+        return 1;
     }
+    return 0;
 }
 
-hale_internal void
-_string_double_quoted(State *S)
+hale_internal b32
+_string_quoted_double(State *S, memi ix)
 {
-    if (input_match(S, "\"", 1)) {
-        token_add(S, token(S, TokenId::StringQuotedDoubleEnd), 0, 1);
+    if (input_match(S, hale_u("\""), 1)) {
+        token_add(S, TokenId::StringQuotedDoubleEnd, 0, 1);
         pop(S);
+        return 1;
     }
+    return 0;
 }
 
 // [...--] [-----]
 
-hale_internal void
+hale_internal b32
 _root(State *S, memi ix)
 {
     switch (ix + __COUNTER__ - 1)
     {
     case __COUNTER__:
-        if (input_match(S, L"/*", 2)) {
+        if (input_match(S, hale_u("/*"), 2)) {
             push(S, TokenId::CommentBlock, _comment_block, -2);
-            token_add(S, token(S, TokenId::CommentBlockBegin), -2, 0);
+            token_add(S, TokenId::CommentBlockBegin, -2, 0);
         };
         return 1;
     case __COUNTER__:
-        if (input_match(S, L"\"", 1)) {
+        if (input_match(S, hale_u("\""), 1)) {
             push(S, TokenId::StringQuotedDouble, _string_quoted_double, -1);
-            token_add(S, token(S, TokenId::StringQuotedDoubleBegin), 0, 1);
+            token_add(S, TokenId::StringQuotedDoubleBegin, 0, 1);
         }
         return 1;
 
@@ -272,7 +259,7 @@ _parse_init(Memory<u8> *storage)
     auto S = (State*)storage->push(sizeof(State));
     *S = {};
 
-    push(S, _root, TokenId::Root, 0);
+    push(S, TokenId::Root, _root, 0);
 }
 
 void
@@ -282,7 +269,7 @@ _parse(Memory<u8> *storage, ch16 *begin, ch16 *end)
     S->it  = begin;
     S->it_ = end;
 
-    ix = s->ix;
+    memi ix = stack_top(S)->state_ix;
     Parse *parse;
     while (S->it != S->it_)
     {
@@ -293,7 +280,8 @@ _parse(Memory<u8> *storage, ch16 *begin, ch16 *end)
         ix = 0;
 
         if (S->it != S->it_) {
-            input_advance(S, 1);
+            S->it++;
+            // input_advance(S, 1);
         }
     }
 }
@@ -304,4 +292,4 @@ CParser::CParser()
     parse = _parse;
 }
 
-}
+} // namespace hale

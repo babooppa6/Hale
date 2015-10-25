@@ -23,10 +23,10 @@ hale_internal void __os_window_paint(Window *window);
 
 }
 
-#if defined(HALE_PLATFORM_WIN32_GDI)
-#include "hale_platform_win32_gdi.cpp"
-#elif defined(HALE_PLATFORM_WIN32_DX)
-#include "hale_os_win32_dx.cpp"
+#if defined(HALE_OS_WIN_GDI)
+#include "os_win32_gdi.cpp"
+#elif defined(HALE_OS_WIN_DX)
+#include "os_win32_dx.cpp"
 #endif
 
 namespace hale {
@@ -434,7 +434,7 @@ main(HINSTANCE instance, int argc, char *argv[])
 
 #if 1
 
-#   ifdef HALE_STU
+#ifdef HALE_STU
 
 //
 // Build with bat file.
@@ -446,10 +446,10 @@ WinMain(HINSTANCE hinst,
         LPSTR command_line,
         int show_code)
 {
-    return hale::main(hinst, argc, argv);
+    return hale::main(hinst, 0, NULL);
 }
 
-#   else
+#else
 
 //
 // Build inside the Qt.

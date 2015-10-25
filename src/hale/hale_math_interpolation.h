@@ -54,7 +54,7 @@ template<typename T>
 inline T
 sine_ease_out(T p)
 {
-    return sin(p * M_PI_2);
+    return sin(p * hale_PI2);
 }
 
 

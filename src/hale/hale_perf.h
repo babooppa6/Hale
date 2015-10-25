@@ -1,7 +1,7 @@
 #ifndef HALE_PERF_H
 #define HALE_PERF_H
 
-#include "hale_os.h"
+#include "hale.h"
 
 #ifdef HALE_OS_WIN
 #include <intrin.h>
@@ -40,10 +40,10 @@ struct performance_timer
         u64 ticks_delta = __rdtsc() - cycles;
         r64 time_d  = time_delta();
 
-        qDebug() << name << "\n"
-                 << "    time "  << (time_d * 1e3) << "ms" << "\n"
-                 << "    ticks" << ((r64)ticks_delta) << "cy" << "\n"
-                 << "    ratio" << ((r64)ticks_delta / time_d)/(1e6) << "cy/ms" << "\n";
+//        qDebug() << name << "\n"
+//                 << "    time "  << (time_d * 1e3) << "ms" << "\n"
+//                 << "    ticks" << ((r64)ticks_delta) << "cy" << "\n"
+//                 << "    ratio" << ((r64)ticks_delta / time_d)/(1e6) << "cy/ms" << "\n";
 
         cycles = __rdtsc() - ticks_delta;
         time  = platform.read_time_counter() - time_d;

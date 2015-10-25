@@ -229,7 +229,7 @@ buf_remove(Buf *buffer, memi offset, memi size)
         // ......#####[...]..
         // ......##########..
 
-        buffer->gap_end = hale_maximum(end + buf_gap(buffer), buffer->gap_end);
+        buffer->gap_end = maximum(end + buf_gap(buffer), buffer->gap_end);
         // Must be done after calling `buf_gap`. Idiot.
         buffer->gap_start = begin;
     }
@@ -577,7 +577,7 @@ insert_non_crit_branch(FixedGapArena *arena,
     // http://cpp.sh/9yp22
 
     // Copy to first (possible split)
-    memi p0 = hale_minimum(buf_capacity - offset, size);
+    memi p0 = minimum(buf_capacity - offset, size);
     // Copy to new buffers (full)
     memi p1 = (size-p0) & ~buf_align_mask;
     // Copy to last (partial)
@@ -782,7 +782,7 @@ fixed_gap_arena_text(FixedGapArena *arena, memi offset, memi size, ch8 *out)
     hale_assert_requirement(it != end);
 
     memi s = buf_length(it);
-    s = hale_minimum(size, s - offset);
+    s = minimum(size, s - offset);
     out = buf_text(it, offset, s, out);
     hale_assert_debug(out <= out_end);
     size -= s;
@@ -790,7 +790,7 @@ fixed_gap_arena_text(FixedGapArena *arena, memi offset, memi size, ch8 *out)
     while (size)
     {
         ++it;
-        s = hale_minimum(size, buf_length(it));
+        s = minimum(size, buf_length(it));
         out = buf_text(it, 0, s, out);
         hale_assert_debug(out <= out_end);
         size -= s;

@@ -5,10 +5,22 @@
 
 namespace hale {
 
+#define hale_PI      3.14159265358979323846
+#define hale_PI2     1.57079632679489661923
+#define hale_PI4     0.785398163397448309616
+
 inline b32
 equal(r32 a, r32 b, r32 epsilon) {
     return fabs(b - a) <= epsilon;
 }
+
+template<typename T>
+inline T
+minimum(T A, T B) { return A < B ? A : B; }
+
+template<typename T>
+inline T
+maximum(T A, T B) { return A > B ? A : B; }
 
 template<typename T>
 struct V2
@@ -197,10 +209,10 @@ rect_intersect(Rect<T> rect, T min_x, T min_y, T max_x, T max_y)
 {
     Rect<T> result;
 
-    result.min_x = hale_maximum(rect.min_x, min_x);
-    result.max_x = hale_minimum(rect.max_x, max_x);
-    result.min_y = hale_maximum(rect.min_y, min_y);
-    result.max_y = hale_minimum(rect.max_y, max_y);
+    result.min_x = maximum(rect.min_x, min_x);
+    result.max_x = minimum(rect.max_x, max_x);
+    result.min_y = maximum(rect.min_y, min_y);
+    result.max_y = minimum(rect.max_y, max_y);
 
     return result;
 }

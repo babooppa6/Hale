@@ -122,6 +122,6 @@ extern Platform platform;
 
 } // namespace hale
 
-#include "hale_os_win32.h"
+#include "os_win32.h"
 
 #endif // HALE_PLATFORM_H

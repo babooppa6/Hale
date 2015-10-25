@@ -4,7 +4,7 @@
 #include "hale.h"
 
 #if defined(HALE_OS_WIN)
-#include "hale_os_win32_ui.h"
+#include "os_win32_ui.h"
 #endif
 
 #endif // HALE_PLATFORM_UI_H

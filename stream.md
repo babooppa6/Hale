@@ -1,5 +1,5 @@
 - The document_layout_layout should note the whole range of lines that has been layouted, so that the draw operation will only draw what has been laid out.
-
+- No stdlib https://forums.handmadehero.org/index.php/forum?view=topic&catid=4&id=79
 
 * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 - Scrolling

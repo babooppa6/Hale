@@ -1,7 +1,5 @@
 #include "hale_document.h"
 
-// #include <QElapsedTimer>
-
 namespace hale {
 
 /*
@@ -83,7 +81,7 @@ notify_format_changed(Document *document, memi begin, memi end)
 b32
 document_can_parse(Document *document)
 {
-    return DOCUMENT_PARSER_WORKING(document) && document->grammar;
+    return DOCUMENT_PARSER_WORKING(document) && document->parser.parse;
 }
 
 void
@@ -92,12 +90,12 @@ document_parse_set_head(Document *document, memi head)
     if (document->parser_head > head) {
         document->parser_head = head;
         if (head == 0) {
-            document->parser_stack.clear();
-            document->parser_stack.push_back({document->grammar->rule});
+//            document->parser_stack.clear();
+//            document->parser_stack.push_back({document->grammar->rule});
 //            vector_clear(&document->parser_state.stack);
 //            vector_push(&document->parser_state.stack, {document->grammar->rule});
         } else {
-            document->parser_stack = document->blocks[head - 1].stack;
+//            document->parser_stack = document->blocks[head - 1].stack;
         }
         // TODO: Try to parse immediately?
     }
