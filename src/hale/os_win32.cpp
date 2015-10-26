@@ -1,5 +1,7 @@
+#if HALE_INCLUDES
 #include "hale.h"
 #include "hale_os.h"
+#endif
 
 namespace hale {
 
@@ -94,7 +96,7 @@ HALE_PLATFORM_READ_TIME_COUNTER(win32_read_time_counter)
 // Files
 //
 
-HALE_PLATFORM_OPEN_FILE(win32_open_file)
+HALE_PLATFORM_OPEN_FILE_8(win32_open_file_8)
 {
     DWORD access = mode == File::Read ? GENERIC_READ : GENERIC_WRITE;
     // TODO: Sharin flag.
@@ -106,6 +108,20 @@ HALE_PLATFORM_OPEN_FILE(win32_open_file)
     file->handle = CreateFileA((LPCSTR)path, access, sharing, 0, creation, 0, 0);
     return file->handle != INVALID_HANDLE_VALUE;
 }
+
+HALE_PLATFORM_OPEN_FILE_16(win32_open_file_16)
+{
+    DWORD access = mode == File::Read ? GENERIC_READ : GENERIC_WRITE;
+    // TODO: Sharin flag.
+    DWORD sharing = mode == File::Read ? FILE_SHARE_READ : 0;
+    // TODO: Append flag.
+    DWORD creation = mode == File::Read ? OPEN_EXISTING : CREATE_ALWAYS; // Cannot combine! (CREATE_NEW|TRUNCATE_EXISTING);
+
+    // CreateFileA(Filename, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    file->handle = CreateFileW((LPCWSTR)path, access, sharing, 0, creation, 0, 0);
+    return file->handle != INVALID_HANDLE_VALUE;
+}
+
 
 HALE_PLATFORM_CLOSE_FILE(win32_close_file)
 {
@@ -254,7 +270,8 @@ Platform::Platform()
     get_file_size_32 = win32_get_file_size_32;
     get_file_size_64 = win32_get_file_size_64;
 
-    open_file = win32_open_file;
+    open_file_8 = win32_open_file_8;
+    open_file_16 = win32_open_file_16;
     close_file = win32_close_file;
     read_file = win32_read_file;
     write_file = win32_write_file;

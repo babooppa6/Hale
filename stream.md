@@ -1,23 +1,24 @@
-- The document_layout_layout should note the whole range of lines that has been layouted, so that the draw operation will only draw what has been laid out.
-- No stdlib https://forums.handmadehero.org/index.php/forum?view=topic&catid=4&id=79
-
+- Opening file from command line
+- Fix bug with layouting and scrolling the text.
 * ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-- Scrolling
-- Custom DirectWrite Renderer
-	+ Background rectangles
-	+ Get rid of IDWriteTextLayout and replace the formatting with our own.
-		* TextFormat should be a simple struct without dependency on the RenderTarget.
-			- Window should create the platform representation on demand.
-	+ Get rid of public API dependency on ID2D1Brush, only use it when drawing.
-
-- Window layout/panel system
-- Parsing
-- Keep 0.5 multiplies of the base font's line height to keep the rhythm of the rendered text.
+- Parser and syntax highlighting at least for basic C grammar.
+- Remove text and delete/backspace commands.
+- Saving file via a shortcut (Ctrl+S)
+- Undo QDataStream replacement
 
 simple_print_float(float64 number, uint16 digits = 3, bool32 sign = True, bool32 sign_if_positive)
 https://www.refheap.com/41a61e226d06278aa004ab332
 
 # Later
+
+- Keep 0.5 multiplies of the base font's line height to keep the rhythm of the rendered text.
+- Selections
+	+ Custom DirectWrite Renderer
+		* Background rectangles
+		* Get rid of IDWriteTextLayout and replace the formatting with our own.
+			- TextFormat should be a simple struct without dependency on the RenderTarget.
+				+ Window should create the platform representation on demand.
+		* Get rid of public API dependency on ID2D1Brush, only use it when drawing.
 
 - Layout updates
 	+ Document > DocumentLayout
@@ -27,9 +28,6 @@ https://www.refheap.com/41a61e226d06278aa004ab332
 		* Version numbers can be 
 	+ Relayout
 
-- DocumentParser
-	+ Needed to test parse scheduling through event loop
-	+ Will require grammars (again JSON)
 - Path normalization and utilities.
 - Runtime encoding type info.
 	- Encoding preambles
@@ -54,14 +52,19 @@ https://www.refheap.com/41a61e226d06278aa004ab332
 
 # What we play on stream
 
-[BOUGHT] Circa Infinity
-[BOUGHT] FEZ
-[BOUGHT] Primordia
+Circa Infinity
+FEZ
+Primordia
 4mat - Prompt
 4mat - Decades
+Floex - Samorost 1
+Floex - Samorost 2
+Floex - Samorost 3 (EP)
+Floax - Machinarium
 
 To buy:
 
+- Ibb & Obb
 - Hotline Miami 2
 - Antichamber
 - Monument Valley
@@ -86,6 +89,11 @@ d:\progs\ffmpeg\bin\ffmpeg -i "Hale (text editor) Document Rendering-v21604211.m
 
 # Notes
 
+- TDB - optimized branch of mingw
+- No StdLib
+	- https://forums.handmadehero.org/index.php/forum?view=topic&catid=4&id=79
+- Adding custom command to Visual Studio
+	- http://stackoverflow.com/questions/6414788/how-can-i-add-a-custom-command-to-visual-studio
 - Debugging Linux from Visual Studio 2015 (purposelydrifting)
 	+ http://blogs.msdn.com/b/vcblog/archive/2015/04/29/debug-c-code-on-linux-from-visual-studio.aspx
 - API Trace
@@ -99,10 +107,10 @@ d:\progs\ffmpeg\bin\ffmpeg -i "Hale (text editor) Document Rendering-v21604211.m
 - Cache grind
 	+ http://sourceforge.net/projects/wincachegrind/
 
-# Miblo / Cockney accent
+# Miblo recommends
 
-- Peaky Blinders
-- 
+- Peaky Blinders (Cockney accent)
+- Only Connect 
 
 # Animating Caret
 

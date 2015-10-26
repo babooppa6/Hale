@@ -1,5 +1,7 @@
+#if HALE_INCLUDES
 #include "hale.h"
 #include "hale_encoding.h"
+#endif
 
 namespace hale {
 

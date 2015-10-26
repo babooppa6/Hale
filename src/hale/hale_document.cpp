@@ -1,6 +1,9 @@
+#if HALE_INCLUDES
 #include "hale.h"
 #include "hale_gap_buffer.h"
 #include "hale_document.h"
+#endif
+
 
 namespace hale {
 
@@ -211,9 +214,7 @@ document_init(Document *document)
     document->indentation_size = 4;
     document->indentation_mode = IndentationMode::Spaces;
 
-    Document::Block block;
-    block.end = 0;
-    block.flags = 0;
+    Document::Block block = {};
     vector_init(&document->blocks, 1);
     vector_push(&document->blocks, block);
     // vector_push(&document->block_info, (Document::Block*)NULL);
@@ -527,6 +528,8 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
             edit->blocks_changed_at = position.block + 1;
         } else {
             // Anywhere at the block begin.
+            // If we're inserting at the beginning of a block, it's quite possible, that actually nothing changes.
+            // But that depend on the things that use this notification.
             edit->block_changed = position.block + vector_count(offsets);
             edit->blocks_changed_at = position.block;
         }
@@ -540,20 +543,14 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
     // Blocks
     //
 
-    // Invalidate the changed block.
-
-    document->blocks[edit->block_changed].flags = Document::Block::F_TextChanged;
-
     // TODO: Invalidate the block also for the sessions.
 
     // Insert new blocks.
 
     if (edit->blocks_changed_count > 0)
     {
-        Document::Block block;
-        block.end = 0;
+        Document::Block block = {};
         block.flags = Document::Block::F_TextChanged;
-        // block.meta = NULL;
 
         // We're inserting this *before* the position.block.
         vector_insert(&document->blocks,
@@ -575,6 +572,10 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
         document->blocks[i].end += text_length;
     }
 
+    // Invalidate the changed block.
+    // Must be done after we insert the blocks.
+    document->blocks[edit->block_changed].flags = Document::Block::F_TextChanged;
+
     edit->pos_begin = position;
     edit->pos_end = position_plus_offset(document, edit->pos_begin, text_length);
 
@@ -594,9 +595,9 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
 
     // Move the parser head
     document_parse_set_head(document, edit->pos_begin.block);
-
-    // TODO(cohen): If the time distance between caret types is small, do not parse immediately.
-    // document_parse_immediate(document, edit->begin.block, edit->end.block);
+    // TODO(cohen): If the time distance between caret types is small,
+    //              do not parse immediately.
+    document_parse_immediate(document, edit->pos_end.block + 1);
 
     // TODO: emit textChanged(&edit);
 }
@@ -613,12 +614,18 @@ document_abner(DocumentEdit *edit, DocumentPosition position, memi length)
 void
 document_text(Document *document, memi offset, memi length, ch *buffer, memi buffer_length)
 {
-    hale_assert(offset + length <= _buffer_length(document->buffer));
-    hale_assert(buffer_length >= length);
+    hale_assert_input(offset + length <= _buffer_length(document->buffer));
+    hale_assert_input(buffer_length >= length);
 
     if (length != 0) {
         _buffer_text(&document->buffer, offset, length, buffer);
     }
+}
+
+Memory<Token> *
+document_tokens(Document *document, memi block_index)
+{
+    return &document->blocks[block_index].tokens;
 }
 
 //

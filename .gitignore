@@ -1,6 +1,4 @@
 build
-*.exe
-src/data/hale.ilk
 *.pdb
 *.exp
 *.ilk

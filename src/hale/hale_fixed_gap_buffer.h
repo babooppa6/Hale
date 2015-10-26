@@ -1,8 +1,10 @@
 #ifndef HALE_FIXED_GAP_BUFFER_H
 #define HALE_FIXED_GAP_BUFFER_H
 
+#if HALE_INCLUDES
 #include "hale.h"
 #include "hale_test.h"
+#endif
 
 namespace hale {
 

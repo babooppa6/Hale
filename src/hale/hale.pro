@@ -8,6 +8,8 @@ TARGET = hale
 CONFIG += c++11
 # CONFIG += console
 
+DEFINES += "HALE_INCLUDES=1"
+DEFINES += "HALE_STU=1"
 DEFINES += "ONIG_EXTERN=extern"
 DEFINES += __PROJECT__=\\\"$$PWD/\\\"
 DEFINES += __WPROJECT__=L\\\"$$PWD/\\\"
@@ -40,7 +42,14 @@ win32 {
 #   # QMAKE_POST_LINK = copy /Y \"$$shell_path($${OUT_PWD}/debug/$${TARGET}.pdb)\" \"$$shell_path($${DESTDIR})\"
 #}
 
-HEADERS += \
+# HEADERS += \
+
+
+SOURCES += \
+    stu.cpp
+
+OTHER_FILES += \
+    Notes.txt \
     hale_types.h \
     hale_vector.h \
     hale_gap_buffer.h \
@@ -74,9 +83,7 @@ HEADERS += \
     os_win32_gdi.h \
     os_win32_ui.h \
     hale_macros.h \
-    hale_config.h
-
-SOURCES += \
+    hale_config.h \
     hale_document.cpp \
     hale_gap_buffer.cpp \
     hale_document_parse.cpp \
@@ -102,40 +109,37 @@ SOURCES += \
     test_encoding.cpp \
     test_encoding_referential.cpp \
     os_darwin.cpp \
-    stu.cpp \
+    _stu.cpp \
     _hale_encoding_hale.cpp \
     _hale_encoding_utf16.cpp \
     _hale_encoding_utf8.cpp \
     hale_os.cpp
 
-OTHER_FILES += \
-    Notes.txt
-
 #
 # Oniguruma
 #
 
-win32:CONFIG(release, debug|release): LIBS += -L$$OUT_PWD/../Oniguruma/release/ -lOniguruma
-else:win32:CONFIG(debug, debug|release): LIBS += -L$$OUT_PWD/../Oniguruma/debug/ -lOniguruma
-else:unix: LIBS += -L$$OUT_PWD/../Oniguruma/ -lOniguruma
+#win32:CONFIG(release, debug|release): LIBS += -L$$OUT_PWD/../Oniguruma/release/ -lOniguruma
+#else:win32:CONFIG(debug, debug|release): LIBS += -L$$OUT_PWD/../Oniguruma/debug/ -lOniguruma
+#else:unix: LIBS += -L$$OUT_PWD/../Oniguruma/ -lOniguruma
 
-INCLUDEPATH += $$PWD/../Oniguruma
-DEPENDPATH += $$PWD/../Oniguruma
+#INCLUDEPATH += $$PWD/../Oniguruma
+#DEPENDPATH += $$PWD/../Oniguruma
 
-win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$OUT_PWD/../Oniguruma/release/libOniguruma.a
-else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$OUT_PWD/../Oniguruma/debug/libOniguruma.a
-else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$OUT_PWD/../Oniguruma/release/Oniguruma.lib
-else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$OUT_PWD/../Oniguruma/debug/Oniguruma.lib
-else:unix: PRE_TARGETDEPS += $$OUT_PWD/../Oniguruma/libOniguruma.a
+#win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$OUT_PWD/../Oniguruma/release/libOniguruma.a
+#else:win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$OUT_PWD/../Oniguruma/debug/libOniguruma.a
+#else:win32:!win32-g++:CONFIG(release, debug|release): PRE_TARGETDEPS += $$OUT_PWD/../Oniguruma/release/Oniguruma.lib
+#else:win32:!win32-g++:CONFIG(debug, debug|release): PRE_TARGETDEPS += $$OUT_PWD/../Oniguruma/debug/Oniguruma.lib
+#else:unix: PRE_TARGETDEPS += $$OUT_PWD/../Oniguruma/libOniguruma.a
 
 #
 # Lua
 #
 
-win32:CONFIG(release, debug|release): LIBS += -L$$DESTDIR/lib/ -llua51
-else:win32:CONFIG(debug, debug|release): LIBS += -L$$DESTDIR/lib/ -llua51
-# else:unix: LIBS += -L$$PWD/../Data/lib/ -llua51
-else:unix: LIBS += -L$$OUT_PWD/../Lua/ -llua51
+#win32:CONFIG(release, debug|release): LIBS += -L$$DESTDIR/lib/ -llua51
+#else:win32:CONFIG(debug, debug|release): LIBS += -L$$DESTDIR/lib/ -llua51
+## else:unix: LIBS += -L$$PWD/../Data/lib/ -llua51
+#else:unix: LIBS += -L$$OUT_PWD/../Lua/ -llua51
 
-INCLUDEPATH += $$PWD/../Lua
-DEPENDPATH += $$PWD/../Lua
+#INCLUDEPATH += $$PWD/../Lua
+#DEPENDPATH += $$PWD/../Lua

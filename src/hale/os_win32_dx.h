@@ -75,6 +75,7 @@ struct Window;
 struct __TextProcessor
 {
     Window *window;
+    ID2D1SolidColorBrush* _d_brushes[8];
 };
 
 struct __DocumentLayout
@@ -106,10 +107,10 @@ struct __DocumentLayout
     IDWriteFactory *w_factory;\
     DWRITE_FONT_METRICS font_metrics
 
-#define __WINDOW_IMPL\
-    ID2D1HwndRenderTarget *d_render_target;\
-    ID2D1SolidColorBrush *d_brush;\
-    TextFormat text_formats[64];\
+#define __WINDOW_IMPL \
+    ID2D1HwndRenderTarget *d_render_target; \
+    ID2D1SolidColorBrush *d_brush; \
+    TextFormat text_formats[64]; \
     memi text_formats_count;
 
 } // namespace hale

@@ -1,5 +1,7 @@
+#if HALE_INCLUDES
 #include "hale_print.h"
 #include "hale_vector.h"
+#endif
 
 namespace hale {
 

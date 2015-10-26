@@ -1,9 +1,11 @@
 #ifndef HALE_HELPER_FILE_H
 #define HALE_HELPER_FILE_H
 
+#if HALE_INCLUDES
 #include "hale.h"
 #include "hale_stream.h"
 #include "hale_encoding.h"
+#endif
 
 namespace hale {
 

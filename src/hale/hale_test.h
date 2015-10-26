@@ -1,7 +1,9 @@
 #ifndef HALE_TEST_H
 #define HALE_TEST_H
 
+#if HALE_INCLUDES
 #include "hale.h"
+#endif
 
 namespace hale {
 

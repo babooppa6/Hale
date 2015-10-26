@@ -1,4 +1,6 @@
+#if HALE_INCLUDES
 #include "hale_document.h"
+#endif
 
 namespace hale {
 
@@ -69,15 +71,6 @@ namespace hale {
 //
 //
 
-hale_internal void
-notify_format_changed(Document *document, memi begin, memi end)
-{
-    for (memi i = 0; i < document->views_count; i++) {
-        // document->sessions[i]
-        // TODO: invalidate text layout in session in range [begin, end]
-    }
-}
-
 b32
 document_can_parse(Document *document)
 {
@@ -85,19 +78,35 @@ document_can_parse(Document *document)
 }
 
 void
+document_parse_set(Document *document, DocumentParser *parser)
+{
+    hale_assert_input(parser);
+
+    document->parser = *parser;
+    document->parser.allocate(&document->parser_state);
+
+    document_parse_set_head(document, 0);
+}
+
+hale_internal inline void
+_copy_stack(ParserStack *destination, ParserStack *source)
+{
+    destination->count = 0;
+    destination->push(source->count);
+    memory_copy(destination->e, source->e, source->count);
+}
+
+void
 document_parse_set_head(Document *document, memi head)
 {
-    if (document->parser_head > head) {
+    if (head < document->parser_head || !DOCUMENT_PARSER_WORKING(document)) {
         document->parser_head = head;
         if (head == 0) {
-//            document->parser_stack.clear();
-//            document->parser_stack.push_back({document->grammar->rule});
-//            vector_clear(&document->parser_state.stack);
-//            vector_push(&document->parser_state.stack, {document->grammar->rule});
+            document->parser_stack.count = 0;
+            document->parser.reset(&document->parser_state, &document->parser_stack);
         } else {
-//            document->parser_stack = document->blocks[head - 1].stack;
+            _copy_stack(&document->parser_stack, &document->blocks[head - 1].stack);
         }
-        // TODO: Try to parse immediately?
     }
 
     if (!DOCUMENT_PARSER_WORKING(document)) {
@@ -106,74 +115,108 @@ document_parse_set_head(Document *document, memi head)
     }
 }
 
-b32
-document_parse(Document *document)
+hale_internal b32
+document_parse(Document *document, memi end)
 {
-#if 0
     memi head = document->parser_head;
-    Parser::Stack &stack = document->parser_stack;
+    r64 time = platform.read_time_counter();
+    Memory<ch16> text = {};
+    ParserStack *stack = &document->parser_stack;
 
-    QString block_text;
+    memi length;
     Document::Block *block;
-    for (; head < vector_count(document->blocks); head++)
+
+    while(head != end)
     {
         block = &document->blocks[head];
         if (block->flags & Document::Block::F_TextChanged ||
-            block->stack != stack)
+            !equal(&block->stack, stack))
         {
-            block_text.resize((int)document_block_length(document, head));
+            length = document_block_length(document, head);
+            text.grow(length);
+            text.count = length;
+
             document_text(document,
                           document_block_begin(document, head),
                           document_block_length(document, head),
-                          (ch*)&block_text[0],
-                          block_text.length());
+                          &text.e[0],
+                          text.count);
 
-            block->stack = stack;
-            block->tokens.clear();
-            document->parser->parse(block_text, &stack, &block->tokens);
+            _copy_stack(&block->stack, stack);
+
+            block->tokens.count = 0;
+
+            document->parser.parse(&document->parser_state,
+                                   &text.e[0],
+                                   &text.e[text.count],
+                                   &block->tokens,
+                                   &block->stack);
+
             block->flags &= ~Document::Block::F_TextChanged;
         } else {
             // No need to parse, just take the stack and continue to next block.
-            stack = block->stack;
+            stack = &block->stack;
+        }
+
+        head++;
+        if ((platform.read_time_counter() - time) > 0.2f) {
+            break;
         }
     }
 
-    // TODO: Do this in-place instead of calling a function.
-    notify_format_changed(document, document->parser_head, head);
+    if (text.e) {
+        text.deallocate();
+    }
 
-    if (document->parser_head == vector_count(document->blocks) - 1) {
+    for (memi i = 0; i < document->views_count; i++) {
+        document_layout_on_format(document->views[i].layout, document->parser_head, head);
+    }
+
+    memi blocks_parsed = head - document->parser_head;
+    document->parser_head = head;
+
+    if (head == vector_count(document->blocks) - 1) {
         document->parser_status = Document::ParserStatus_Done;
-        return false;
     } else {
         document->parser_status = Document::ParserStatus_Working;
-        return true;
     }
-#else
-    return false;
-#endif
+
+    return blocks_parsed;
 }
 
-void
-document_parse(DocumentArena *arena)
+memi
+document_parse_immediate(Document *document, memi end)
 {
-    memi pending = 0;
-
-    Document *document;
-    for (memi i = 0; i < vector_count(arena->documents); i++) {
-        document = arena->documents[i];
-        if (DOCUMENT_PARSER_WORKING(document) && !DOCUMENT_PARSER_PAUSED(document)) {
-            if (document_parse(document)) {
-                pending++;
-            }
-        }
-    }
-
-    if (pending) {
-        // TODO: defer()
-        hale_not_implemented;
-    }
+    return document_parse(document, end);
 }
 
+memi
+document_parse_partial(Document *document)
+{
+    return document_parse(document, vector_count(document->blocks));
+}
+
+
+//void
+//document_parse(DocumentArena *arena)
+//{
+//    memi pending = 0;
+
+//    Document *document;
+//    for (memi i = 0; i < vector_count(arena->documents); i++) {
+//        document = arena->documents[i];
+//        if (DOCUMENT_PARSER_WORKING(document) && !DOCUMENT_PARSER_PAUSED(document)) {
+//            if (document_parse(document)) {
+//                pending++;
+//            }
+//        }
+//    }
+
+//    if (pending) {
+//        // TODO: defer()
+//        hale_not_implemented;
+//    }
+//}
 // TODO(cohen): We must parse the line if:
 // - F_TokensInvalidated is set -or-
 // - The end stack of the previous line is different with beginning stack of this line.

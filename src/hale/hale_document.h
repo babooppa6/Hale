@@ -1,12 +1,14 @@
 #ifndef HALE_DOCUMENT_H
 #define HALE_DOCUMENT_H
 
+#if HALE_INCLUDES
 #include "hale.h"
 #include "hale_gap_buffer.h"
 #include "hale_fixed_gap_buffer.h"
 #include "hale_document_types.h"
 #include "hale_document_view.h"
 #include "hale_document_parser.h"
+#endif
 
 namespace hale {
 
@@ -63,6 +65,10 @@ struct Document
 
         memi end;
         u32 flags;
+        // TODO: Make a better memory layout for these.
+        //       Make "Segment" that will actually span over several blocks.
+        ParserStack stack;
+        Tokens tokens;
 
 #if 0
         // TODO: Use gap_buffer for tokens, as it's a structure similar to text.
@@ -98,10 +104,8 @@ struct Document
 
     u32 parser_status;
     memi parser_head;
-#if 0
-    Parser::Stack parser_stack;
-    Parser *parser;
-#endif
+    ParserState parser_state;
+    ParserStack parser_stack;
     DocumentParser parser;
 
     FixedGapArena buffer;
@@ -338,6 +342,7 @@ document_append(DocumentEdit *edit, ch *text, memi text_length) {
 
 void document_abner(DocumentEdit *edit, DocumentPosition position, memi length);
 
+Memory<Token> *document_tokens(Document *document, memi block_index);
 void document_text(Document *document, memi offset, memi length, ch *buffer, memi buffer_length);
 
 void document_undo(Document *document);
@@ -354,10 +359,10 @@ void document_commit(DocumentEdit *edit);
 // Parser
 //
 
-b32
-document_parse(Document *document);
-void
-document_parse_set_head(Document *document, memi head);
+void document_parse_set(Document *document, DocumentParser *parser);
+void document_parse_set_head(Document *document, memi head);
+memi document_parse_immediate(Document *document, memi end);
+memi document_parse_partial(Document *document);
 
 } // namespace hale
 

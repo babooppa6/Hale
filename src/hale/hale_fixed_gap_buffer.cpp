@@ -1,5 +1,7 @@
+#if HALE_INCLUDES
 #include "hale_fixed_gap_buffer.h"
 #include "hale_print.h"
+#endif
 
 namespace hale {
 

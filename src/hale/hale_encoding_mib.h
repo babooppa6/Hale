@@ -1,7 +1,9 @@
 #ifndef HALE_ENCODING_MIB_H
 #define HALE_ENCODING_MIB_H
 
+#if HALE_INCLUDES
 #include "hale.h"
+#endif
 
 // TODO: Validate whether it is okay to encode 0xD800 instead of 0xD7C0.
 #define HALE_UTF16_SUR_H(codepoint)\

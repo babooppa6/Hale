@@ -1,4 +1,6 @@
+#if HALE_INCLUDES
 #include "hale_test.h"
+#endif
 
 namespace hale {
 

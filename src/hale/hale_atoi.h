@@ -5,8 +5,6 @@
 // Adopted from:
 // https://github.com/miloyip/itoa-benchmark
 
-#include "hale.h"
-
 namespace hale {
 
 struct Naive

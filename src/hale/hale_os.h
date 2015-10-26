@@ -6,8 +6,11 @@ namespace hale {
 // Defined in platform.
 struct File;
 
-#define HALE_PLATFORM_OPEN_FILE(name) b32 name(File *file, const ch8 *path, u32 mode)
-typedef HALE_PLATFORM_OPEN_FILE(PlatformOpenFile);
+#define HALE_PLATFORM_OPEN_FILE_8(name) b32 name(File *file, const ch8 *path, u32 mode)
+typedef HALE_PLATFORM_OPEN_FILE_8(PlatformOpenFile8);
+
+#define HALE_PLATFORM_OPEN_FILE_16(name) b32 name(File *file, const ch16 *path, u32 mode)
+typedef HALE_PLATFORM_OPEN_FILE_16(PlatformOpenFile16);
 
 #define HALE_PLATFORM_CLOSE_FILE(name) void name(File *file)
 typedef HALE_PLATFORM_CLOSE_FILE(PlatformCloseFile);
@@ -85,7 +88,8 @@ struct Platform
 
     PlatformReadTimeCounter *read_time_counter;
 
-    PlatformOpenFile *open_file;
+    PlatformOpenFile8 *open_file_8;
+    PlatformOpenFile16 *open_file_16;
     PlatformCloseFile *close_file;
     PlatformReadFile *read_file;
     PlatformWriteFile *write_file;
@@ -112,6 +116,16 @@ struct Platform
 
     inline void debug_print(ch8 *string, memi length) {
         debug_print_N_8(string, length);
+    }
+
+    inline b32 open_file(File *file, const ch16 *path, u32 mode)
+    {
+        return open_file_16(file, path, mode);
+    }
+
+    inline b32 open_file(File *file, const ch8 *path, u32 mode)
+    {
+        return open_file_8(file, path, mode);
     }
 };
 

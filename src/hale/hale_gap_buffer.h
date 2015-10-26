@@ -1,8 +1,10 @@
 #ifndef HALE_GAP_BUFFER_H
 #define HALE_GAP_BUFFER_H
 
+#if HALE_INCLUDES
 #include "hale_types.h"
 #include "hale_test.h"
+#endif
 
 #define HALE_GAP_BUFFER_NEVER_EMPTY
 

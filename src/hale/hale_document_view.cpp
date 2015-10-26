@@ -1,5 +1,7 @@
+#if HALE_INCLUDES
 #include "hale_document.h"
 #include "hale_ui.h"
+#endif
 
 namespace hale {
 

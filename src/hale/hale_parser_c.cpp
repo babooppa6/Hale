@@ -1,5 +1,7 @@
+#if HALE_INCLUDES
 #include "hale.h"
 #include "hale_parser_c.h"
+#endif
 
 // https://github.com/zserge/jsmn
 
@@ -9,7 +11,7 @@ namespace hale {
 
 enum TokenId : memi
 {
-    Root,
+    Root = 1,
 
     CommentBlockBegin,
     CommentBlockEnd,
@@ -20,67 +22,42 @@ enum TokenId : memi
     StringQuotedDouble,
 };
 
-struct State;
-
-#define HALE_PARSE(N) b32 N(State *state, memi ix)
-typedef HALE_PARSE(Parse);
-
-struct StackItem
-{
-    Parse *parse;
-    memi state_ix;
-    memi state_p;
-};
-
-struct Token
-{
-    memi ix;
-    memi begin;
-    memi end;
-};
-
-struct Node
-{
-    memi ix;
-    const char *name;
-};
-
-struct State
-{
-    ch16 *it;
-    ch16 *it_;
-    Memory<StackItem> stack;
-    Memory<Token> *tokens;
-
-    // TODO: Do the AST later.
-//    Memory<Node> node_stack;
-//    // TODO: This should be stored on the document.
-//    Memory<Token> node_table;
-};
-
 //
 // Tokens
 //
 
-void
-token_add(State *S, memi ix, memi begin, memi end)
+Token *
+token_add(ParserState *S, memi token_id, s32 begin, s32 end)
 {
-    auto token = memory_push(S->tokens, 1, 16);
-//    token->ix = ix;
-//    token->begin = begin;
-//    token->end = end;
+	hale_assert_input(end >= begin);
+
+	memi p = (S->it - S->it_begin);
+	hale_assert((s64)p >= (s64)begin);
+
+	Token *token = S->tokens->push(1, 16);
+	token->id = token_id;
+	token->begin = p + begin;
+	token->end = p + end;
+
+	return token;
 }
 
 void
-token_push(State *S, memi token, memi begin)
+token_push(ParserState *S, memi token_id, s32 begin)
 {
-
+    // TODO: Use MAX_INT for ends of open tokens.
+	Token *token = token_add(S, token_id, begin, begin);
+    memi *token_s = S->token_stack.push(1, 4);
+    *token_s = token - &S->tokens->e[0];
 }
 
 void
-token_pop(State *S)
+token_pop(ParserState *S, s32 end)
 {
-
+    memi p = (S->it - S->it_begin);
+    hale_assert(p >= end);
+    memi *token_s = S->token_stack.pop();
+    S->tokens->e[*token_s].end = (S->it - S->it_begin) + end;
 }
 
 //
@@ -88,23 +65,25 @@ token_pop(State *S)
 //
 
 inline void
-stack_push(State *S, Parse *parse)
+stack_push(Memory<ParserStackItem> *stack, Parse *parse)
 {
-    auto item = S->stack.push(1, 16);
+    auto item = stack->push(1, 16);
+	*item = {};
     item->parse = parse;
     // TODO: Clear cache.
 }
 
 inline Parse *
-stack_pop(State *S)
+stack_pop(Memory<ParserStackItem> *stack)
 {
-    return S->stack.pop()->parse;
+    return stack->pop()->parse;
 }
 
-inline StackItem *
-stack_top(State *S)
+inline ParserStackItem *
+stack_top(Memory<ParserStackItem> *stack)
 {
-    return &S->stack.e[S->stack.count - 1];
+    hale_assert(stack->count);
+    return &stack->e[stack->count - 1];
 }
 
 //
@@ -112,11 +91,11 @@ stack_top(State *S)
 //
 
 hale_internal b32
-input_match(State *S, const ch16 *needle, memi needle_length)
+input_match(ParserState *S, const ch16 *needle, memi needle_length)
 {
     memi n = 0;
     // TODO: Use boyer-moore search here, cache the forward match.
-    if ((S->it + needle_length) <= S->it_)
+    if ((S->it + needle_length) <= S->it_end)
     {
         switch (needle_length)
         {
@@ -153,72 +132,39 @@ input_match(State *S, const ch16 *needle, memi needle_length)
 //
 
 hale_internal void
-push(State *S, memi token, Parse *parse, memi b)
+push(ParserState *S, memi token, Parse *parse, s32 begin)
 {
-    stack_push(S, parse);
-    token_push(S, token, b);
+    stack_push(S->stack, parse);
+    token_push(S, token, begin);
 }
 
 hale_internal Parse *
-pop(State *S)
+pop(ParserState *S, s32 end)
 {
-    token_pop(S);
-    return stack_pop(S);
+    token_pop(S, end);
+    return stack_pop(S->stack);
 }
 
 //
 //
 //
 
-#if 0
-hale_internal void
-_comment_block(State *S)
-{
-    if (input_match(S, "*/", 2)) {
-        token_add(S, TokenId::CommentBlockEnd, 0, 2);
-        pop(S);
-    }
-}
-
-hale_internal void
-_string_double_quoted(State *S)
-{
-    if (input_match(S, "\"", 1)) {
-        token_add(S, token(S, TokenId::StringQuotedDoubleEnd), 0, 1);
-        pop(S);
-    }
-}
-
-hale_internal void
-_root(State *S)
-{
-    if (input_match(S, "/*", 2)) {
-        push(S, TokenId::CommentBlock, _comment_block, -2);
-        token_add(S, token(S, TokenId::CommentBlockBegin), -2, 0);
-    } else if (input_match(S, "\"", 1)) {
-        push(S, TokenId::StringQuotedDouble, _string_quoted_double, -1);
-        token_add(S, token(S, TokenId::StringQuotedDoubleBegin), 0, 1);
-    }
-}
-#endif
-
-hale_internal b32
-_comment_block(State *S, memi ix)
+HALE_PARSE(_comment_block)
 {
     if (input_match(S, hale_u("*/"), 2)) {
-        token_add(S, TokenId::CommentBlockEnd, 0, 2);
-        pop(S);
+        token_add(S, TokenId::CommentBlockEnd, -2, 0);
+        pop(S, 0);
         return 1;
     }
     return 0;
 }
 
-hale_internal b32
-_string_quoted_double(State *S, memi ix)
+
+HALE_PARSE(_string_quoted_double)
 {
     if (input_match(S, hale_u("\""), 1)) {
-        token_add(S, TokenId::StringQuotedDoubleEnd, 0, 1);
-        pop(S);
+        token_add(S, TokenId::StringQuotedDoubleEnd, -1, 0);
+        pop(S, 0);
         return 1;
     }
     return 0;
@@ -226,70 +172,70 @@ _string_quoted_double(State *S, memi ix)
 
 // [...--] [-----]
 
-hale_internal b32
-_root(State *S, memi ix)
-{
-    switch (ix + __COUNTER__ - 1)
-    {
-    case __COUNTER__:
-        if (input_match(S, hale_u("/*"), 2)) {
-            push(S, TokenId::CommentBlock, _comment_block, -2);
-            token_add(S, TokenId::CommentBlockBegin, -2, 0);
-        };
-        return 1;
-    case __COUNTER__:
-        if (input_match(S, hale_u("\""), 1)) {
-            push(S, TokenId::StringQuotedDouble, _string_quoted_double, -1);
-            token_add(S, TokenId::StringQuotedDoubleBegin, 0, 1);
-        }
-        return 1;
+/* ....... */
 
-    default:
-        return 0;
+hale_internal
+HALE_PARSE(_root)
+{
+    if (input_match(S, hale_u("/*"), 2)) {
+        push(S, TokenId::CommentBlock, _comment_block, -2);
+        token_add(S, TokenId::CommentBlockBegin, -2, 0);
+		return 1;
+    } else if (input_match(S, hale_u("\""), 1)) {
+        push(S, TokenId::StringQuotedDouble, _string_quoted_double, -1);
+        token_add(S, TokenId::StringQuotedDoubleBegin, -1, 0);
+		return 1;
     }
+	return 0;
 }
 
 //
 //
 //
 
-void
-_parse_init(Memory<u8> *storage)
+hale_internal
+HALE_DOCUMENT_PARSER_ALLOCATE(_allocate)
 {
-    auto S = (State*)storage->push(sizeof(State));
     *S = {};
-
-    push(S, TokenId::Root, _root, 0);
 }
 
-void
-_parse(Memory<u8> *storage, ch16 *begin, ch16 *end)
+hale_internal
+HALE_DOCUMENT_PARSER_RESET(_reset)
 {
-    auto S = (State*)storage->e;
-    S->it  = begin;
-    S->it_ = end;
+    stack_push(stack, _root);
+}
 
-    memi ix = stack_top(S)->state_ix;
+hale_internal
+HALE_DOCUMENT_PARSER_PARSE(_parse)
+{
+    S->it_begin = begin;
+    S->it_end   = end;
+    S->it       = begin;
+    S->tokens   = tokens;
+    S->stack    = stack;
+
     Parse *parse;
-    while (S->it != S->it_)
+    for (;;)
     {
-        parse = stack_top(S)->parse;
-        while (parse(S, ix)) {
-            ++ix;
-        }
-        ix = 0;
+        do {
+            parse = stack_top(S->stack)->parse;
+		} while (parse(S));
 
-        if (S->it != S->it_) {
+        if (S->it != S->it_end) {
             S->it++;
-            // input_advance(S, 1);
-        }
+        } else {
+			break;
+		}
     }
+
+    // TODO: Pop everything from the token stack.
 }
 
 CParser::CParser()
 {
-    parse_init = _parse_init;
-    parse = _parse;
+    allocate = _allocate;
+    reset    = _reset;
+    parse    = _parse;
 }
 
 } // namespace hale

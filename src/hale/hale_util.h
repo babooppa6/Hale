@@ -24,7 +24,8 @@ b32 equal(const T *a, const T *a_, const T *b0)
 // TODO: Benchmark using memcmp
 
 template<typename T>
-b32 equal(const T *a, const T *a_, const T *b, const T *b_)
+inline b32
+equal(const T *a, const T *a_, const T *b, const T *b_)
 {
     hale_assert_requirement(a <= a_);
     hale_assert_requirement(b <= b_);

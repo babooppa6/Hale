@@ -1,6 +1,12 @@
 #ifndef HALE_MEMORY_H
 #define HALE_MEMORY_H
 
+#if HALE_INCLUDES
+#include "hale_macros.h"
+#include "hale_types.h"
+#include "hale_os.h"
+#endif
+
 namespace hale {
 
 template<typename _T>
@@ -48,9 +54,9 @@ template<typename M>
 inline typename M::T *
 memory_insert(M *memory, memi offset, memi count, memi prealloc = 0)
 {
-    hale_assert_input(memory->count);
+    hale_assert_input(count);
     // TODO: Do custom "insert" adjustment, as we're doing two memory moves here (one for allocation, one for insert)
-    memory->adjust(memory->count + count + prealloc);
+    memory->grow(memory->count + count + prealloc);
     memory->count += count;
     return memory_insert(&memory->e[0], memory->count, &memory->e[0] + offset, count);
 }
@@ -59,7 +65,8 @@ template<typename M>
 inline typename M::T*
 memory_remove_ordered(M *memory, memi offset, memi count)
 {
-    hale_assert_input((offset + count) < memory->count);
+	hale_assert_input(count);
+    hale_assert_input((offset + count) <= memory->count);
 
     // .....xxx...~~
     //      vvv^^^
@@ -115,6 +122,13 @@ struct Memory
         free(e);
     }
 
+    inline void reset() {
+        if (e) {
+            deallocate();
+            *this = {};
+        }
+    }
+
     inline _T* reallocate(memi new_capacity) {
         return e = (_T*)realloc(e, new_capacity * sizeof(_T));
     }
@@ -161,7 +175,7 @@ struct StaticMemory
     _T e[Size];
     memi count;
 
-    inline _T* adjust(memi new_capacity) {
+    inline _T* grow(memi new_capacity) {
         hale_assert(new_capacity <= Size);
         return &e[0];
     }
@@ -186,6 +200,14 @@ struct StaticMemory
         return memory_pop(this);
     }
 };
+
+template<typename T>
+inline b32
+equal(Memory<T> *a, Memory<T> *b)
+{
+    return equal<T>(a->e, &a->e[a->count],
+                    b->e, &b->e[b->count]);
+}
 
 } // namespace hale
 

@@ -1,5 +1,7 @@
+#if HALE_INCLUDES
 #include "hale_ui.h"
 #include "hale_document.h"
+#endif
 
 #include <d2d1.h>
 #pragma comment(lib, "d2d1.lib")
@@ -22,18 +24,18 @@
 namespace hale {
 
 //
-//
+// Common conversions
 //
 
-inline D2D1::ColorF
-to_dcolor(Color32 color)
+hale_internal inline D2D1::ColorF
+_dcolor(Color32 color)
 {
     return D2D1::ColorF(RGB(color.b, color.g, color.r),
                         (FLOAT)color.a / 255.0f);
 }
 
-inline D2D1_RECT_F
-to_drect(const Rect<r32> &rect)
+hale_internal inline D2D1_RECT_F
+_drect(const Rect<r32> &rect)
 {
     return D2D1::RectF(rect.min_x,
                        rect.min_y,
@@ -75,6 +77,50 @@ struct ScopedCOM
 
     T *ptr;
 };
+
+//
+// Some Microsoft <3
+//
+
+namespace ms_love
+{
+
+hale_internal void
+_make_color(ID2D1RenderTarget *rt,
+            ID2D1SolidColorBrush **brush,
+            Color32 color)
+{
+    HRESULT hr;
+    hr = rt->CreateSolidColorBrush(
+                _dcolor(color),
+                brush
+                );
+
+    if (FAILED(hr)) {
+        hale_error("CreateSolidColorBrush");
+        hale_panic("CreateSolidColorBrush");
+    }
+}
+
+
+hale_internal void
+_create_palette(__TextProcessor *p, ID2D1RenderTarget *rt)
+{
+    _make_color(rt, &p->_d_brushes[0], {0x2c, 0x91, 0xad, 0xFF}); // Blue
+    _make_color(rt, &p->_d_brushes[1], {0xFF, 0xd8, 0x4b, 0xFF}); // Yellow
+    _make_color(rt, &p->_d_brushes[2], {0x0f, 0x87, 0x51, 0xFF}); // Green
+}
+
+hale_internal void
+_release_palette(__TextProcessor *p)
+{
+    for (memi i = 0; i != 3; ++i) {
+        __safe_release(&p->_d_brushes[i]);
+    }
+}
+
+}
+
 
 // ----------------------------------------------------------------
 //
@@ -226,6 +272,9 @@ __window_create_resources(Window *window)
         return hr;
     }
 
+    ms_love::_create_palette(&window->text_processor.impl,
+                           window->impl.d_render_target);
+
     return hr;
 }
 
@@ -237,6 +286,7 @@ __window_release_resources(Window *window)
         __safe_release(&window->impl.text_formats[i]._format);
         __safe_release(&window->impl.text_formats[i]._brush);
     }
+    ms_love::_release_palette(&window->text_processor.impl);
     __safe_release(&window->impl.d_render_target);
 }
 
@@ -309,12 +359,6 @@ __os_window_paint(Window *window)
 // TextFormat
 //
 // ----------------------------------------------------------------
-
-hale_internal void
-__create_text_format(TextFormat *format)
-{
-
-}
 
 TextFormat *
 text_format(TextProcessor *text_processor,
@@ -389,7 +433,7 @@ text_format(TextProcessor *text_processor,
     format->_brush = NULL;
 
     hr = impl_window->d_render_target->CreateSolidColorBrush(
-        to_dcolor(format->color),
+        _dcolor(format->color),
         &format->_brush
         );
 
@@ -467,8 +511,6 @@ text_layout_update(TextProcessor *text_processor,
                    ch16 *text,
                    memi text_length,
                    TextFormat *format_base,
-                   TextFormatRange *format_ranges,
-                   memi format_ranges_count,
                    r32 max_width)
 {
     if (text || layout->w_layout == NULL)
@@ -488,26 +530,43 @@ text_layout_update(TextProcessor *text_processor,
         layout->w_layout->SetMaxWidth(max_width);
         layout->w_layout->GetMetrics(&layout->w_metrics);
     }
+}
 
-
-
+hale_internal void
+_text_layout_update_formats(TextProcessor *text_processor,
+                            TextLayout *layout,
+                            Memory<Token> *tokens)
+{
     HRESULT hr;
     DWRITE_TEXT_RANGE r;
     IDWriteTextLayout *wl = layout->w_layout;
-    TextFormatRange *s;
-    for (memi i = 0; i != format_ranges_count; i++)
+    Token *token = &tokens->e[0];
+    for (memi i = 0; i != tokens->count; i++)
     {
-        s = &format_ranges[i];
-
         // TODO: Isn't there a better way to do this?
         //     - There is, my friend, just implement your own
         //       TextRenderer or TextLayout.
-        r.startPosition = s->begin;
-        r.length = s->end - s->begin;
-        hr = wl->SetFontWeight((DWRITE_FONT_WEIGHT)s->format->weight, r);
-        hr = wl->SetFontStyle((DWRITE_FONT_STYLE)s->format->style, r);
-        hr = wl->SetFontSize((FLOAT)s->format->size, r);
-        layout->w_layout->SetDrawingEffect(s->format->_brush, r);
+        r.startPosition = token->begin;
+        r.length = token->end - token->begin;
+        switch (token->id)
+        {
+        case 4: // CommentBlock
+            hr = wl->SetDrawingEffect(text_processor->impl._d_brushes[0], r);
+            hale_assert(SUCCEEDED(hr));
+            wl->SetFontStyle(DWRITE_FONT_STYLE_ITALIC, r);
+            break;
+        case 7: // StringQuotedDouble
+            hr = wl->SetDrawingEffect(text_processor->impl._d_brushes[1], r);
+            hale_assert(SUCCEEDED(hr));
+            wl->SetFontWeight(DWRITE_FONT_WEIGHT_BOLD, r);
+            break;
+        }
+
+//        wl->SetFontWeight((DWRITE_FONT_WEIGHT)s->format->weight, r);
+//        hr = wl->SetFontStyle((DWRITE_FONT_STYLE)s->format->style, r);
+//        hr = wl->SetFontSize((FLOAT)s->format->size, r);
+//        wl->SetDrawingEffect(s->format->_brush, r);
+        token++;
     }
 }
 
@@ -542,8 +601,7 @@ _get_block(DocumentLayout *layout, memi block_index)
     Document *document = session->document;
 
     Memory<ch16> text = {};
-    TextFormatRange *formats = NULL;
-    memi formats_count = 0;
+    Memory<Token> *tokens = 0;
 
     auto block = &impl->blocks[block_index];
 
@@ -569,14 +627,13 @@ _get_block(DocumentLayout *layout, memi block_index)
     if ((block->flags & __DocumentLayout::FormatValid) == 0)
     {
         block->flags |= __DocumentLayout::FormatValid;
-        // document_formats(session->document, block_index);
-        // TODO: Update the formats.
+        tokens = document_tokens(document, block_index);
     }
 
     r32 max_width = layout->document_rect.max_x - layout->document_rect.min_x;
     if (block->layout.w_layout == NULL ||
             text.e ||
-            formats ||
+            tokens ||
             !equal(block->layout.w_layout->GetMaxWidth(), max_width, 0.1f)
             )
     {
@@ -587,8 +644,10 @@ _get_block(DocumentLayout *layout, memi block_index)
                            &block->layout,
                            text.e, text.count,
                            layout->base_format,
-                           formats, formats_count,
                            max_width);
+        if (tokens) {
+            _text_layout_update_formats(layout->text_processor, &block->layout, tokens);
+        }
     }
 
     if (text.e) {
@@ -681,22 +740,22 @@ _reset_blocks(DocumentLayout *layout, memi i, r32 y)
     memi block_count = vector_count(layout->impl.blocks);
 
     __DocumentLayout::Block *block;
-    layout->scroll_block_first_i = i;
-    layout->scroll_block_first_y = y;
-    layout->scroll_block_last_i = i;
+    layout->scroll_begin = i;
+    layout->scroll_begin_y = y;
+    layout->scroll_end = i;
 
     do {
         block = _get_block(layout, i);
         block->y = y;
         // qDebug() << "Place" << i << block->y;
         y += _get_block_height(block);
+        i++;
         if (y > layout->document_rect.max_y) {
             break;
         }
-        i++;
     } while (i != block_count);
 
-    layout->scroll_block_last_i = i;
+    layout->scroll_end = i;
     // qDebug() << "First" << layout->scroll_block_first_i << layout->scroll_block_first_y << "Last" << i;
     layout->impl.layout_invalid = 0;
 }
@@ -705,7 +764,7 @@ hale_internal
 inline memi
 _find_block_for_y(DocumentLayout *layout, r32 delta, r32 *o_y)
 {
-    memi i = layout->scroll_block_first_i;
+    memi i = layout->scroll_begin;
     auto first = _get_block(layout, i);
     return _find_block_for_y(layout, i, first->y, delta, o_y);
 }
@@ -723,8 +782,8 @@ document_layout(TextProcessor *text_processor, DocumentView *session)
 
     layout->text_processor = text_processor;
     layout->session = session;
-    layout->scroll_block_first_i = 0;
-    layout->scroll_block_first_y = 0;
+    layout->scroll_begin = 0;
+    layout->scroll_begin_y = 0;
     layout->impl.layout_invalid = 1;
 
     memi block_count = vector_count(session->document->blocks);
@@ -763,7 +822,6 @@ document_layout_on_insert(DocumentLayout *layout, DocumentEdit *edit)
 {
     Vector<__DocumentLayout::Block> *blocks = &layout->impl.blocks;
 
-    (*blocks)[edit->block_changed].flags &= ~(__DocumentLayout::TextValid | __DocumentLayout::FormatValid);
     if (edit->blocks_changed_count)
     {
         // qDebug() << (*blocks)[0].flags << (*blocks)[1].flags << (*blocks)[2].flags << (*blocks)[3].flags;
@@ -775,7 +833,19 @@ document_layout_on_insert(DocumentLayout *layout, DocumentEdit *edit)
         // qDebug() << (*blocks)[0].flags << (*blocks)[1].flags << (*blocks)[2].flags << (*blocks)[3].flags;
     }
 
+    // NOTE(cohen): Do after we insert blocks.
+    (*blocks)[edit->block_changed].flags &= ~(__DocumentLayout::TextValid | __DocumentLayout::FormatValid);
+
     layout->impl.layout_invalid = 1;
+}
+
+void
+document_layout_on_format(DocumentLayout *layout, memi first, memi last)
+{
+    Vector<__DocumentLayout::Block> *blocks = &layout->impl.blocks;
+    for (memi i = first; i != last; ++i) {
+        (*blocks)[i].flags &= ~__DocumentLayout::FormatValid;
+    }
 }
 
 void
@@ -786,8 +856,8 @@ document_layout_layout(DocumentLayout *layout)
     }
 
     _reset_blocks(layout,
-                  layout->scroll_block_first_i,
-                  layout->scroll_block_first_y);
+                  layout->scroll_begin,
+                  layout->scroll_begin_y);
 }
 
 hale_internal inline void
@@ -845,10 +915,10 @@ document_layout_draw(Window *window, DocumentLayout *layout)
     Vector<ch16> buffer;
     vector_init(&buffer, 10);
 
-    memi i = layout->scroll_block_first_i;
+    memi i = layout->scroll_begin;
     // r32 y = layout->viewport.min_y + layout->scroll_block_y;
     __DocumentLayout::Block *block;
-    while (i != (layout->scroll_block_last_i+1))
+    while (i != layout->scroll_end)
     {
         // TODO: Draw selections.
         // TODO: Maybe not use block->y directly, but use the document_rect to shift it?
@@ -1016,7 +1086,7 @@ draw_text(Window *window,
     hale_assert(format->_format);
 
     auto brush = window->impl.d_brush;
-    brush->SetColor(to_dcolor(format->color));
+    brush->SetColor(_dcolor(format->color));
 
     window->impl.d_render_target->DrawText(
                 (WCHAR*)text,
@@ -1039,7 +1109,7 @@ draw_rectangle(Window *window,
                Color32 color)
 {
     __Window *impl = &window->impl;
-    impl->d_brush->SetColor(to_dcolor(color));
+    impl->d_brush->SetColor(_dcolor(color));
     impl->d_render_target->FillRectangle(D2D1::RectF(min_x, min_y, max_x, max_y),
                                          impl->d_brush);
 }
@@ -1051,8 +1121,8 @@ draw_rectangle(Window *window,
                Color32 color)
 {
     __Window *impl = &window->impl;
-    impl->d_brush->SetColor(to_dcolor(color));
-    impl->d_render_target->FillRectangle(to_drect(rect),
+    impl->d_brush->SetColor(_dcolor(color));
+    impl->d_render_target->FillRectangle(_drect(rect),
                                          impl->d_brush);
 }
 

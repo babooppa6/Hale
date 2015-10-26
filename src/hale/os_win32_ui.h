@@ -1,7 +1,9 @@
 #ifndef HALE_PLATFORM_WIN32_UI_H
 #define HALE_PLATFORM_WIN32_UI_H
 
+#if HALE_INCLUDES
 #include "hale.h"
+#endif
 
 #if defined(HALE_OS_WIN_GDI)
 #include "os_win32_gdi.h"

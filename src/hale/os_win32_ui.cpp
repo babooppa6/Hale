@@ -1,5 +1,7 @@
+#if HALE_INCLUDES
 #include "hale.h"
 #include "hale_ui.h"
+#endif
 
 #include <windowsx.h>
 
@@ -7,6 +9,8 @@
 #pragma comment(lib, "dwmapi.lib")
 #pragma comment(lib, "Gdi32.lib")
 #pragma comment(lib, "Ole32.lib")
+#pragma comment(lib, "Shell32.lib")
+
 #include <dwmapi.h>
 
 namespace hale {
@@ -332,6 +336,17 @@ _run_animations(App *app, r32 dt)
     }
 }
 
+//
+// Idle processing.
+//
+
+//VOID CALLBACK _idle_proc(HWND     handle,
+//                         UINT     message,
+//                         UINT_PTR timer_id,
+//                         DWORD    time)
+//{
+//    print("idle");
+//}
 
 // *********************************************************************************
 //
@@ -340,18 +355,16 @@ _run_animations(App *app, r32 dt)
 // *********************************************************************************
 
 int
-main(HINSTANCE instance, int argc, char *argv[])
+main(HINSTANCE instance, s32 argc, ch16 *argv[])
 {
-    // TODO: Command line args.
-    hale_unused(argc);
-    hale_unused(argv);
-
     Memory<u64> memory;
     memory.allocate(16);
     memory_push(&memory, 1);
 
     App *app = (App*)malloc(sizeof(App));
     *app = {};
+    app->argc = argc;
+    app->argv = argv;
 
     __App *app_impl = &app->impl;
     app_impl->instance = instance;
@@ -364,7 +377,7 @@ main(HINSTANCE instance, int argc, char *argv[])
 
     WNDCLASSA window_class;
     ZeroMemory(&window_class, sizeof(window_class));
-    window_class.style = CS_OWNDC ; //CS_HREDRAW|CS_VREDRAW;
+    window_class.style = CS_OWNDC; //CS_HREDRAW|CS_VREDRAW;
     window_class.lpfnWndProc = _window_proc;
     window_class.hInstance = app_impl->instance;
     window_class.hCursor = LoadCursor(0, IDC_ARROW);
@@ -382,7 +395,13 @@ main(HINSTANCE instance, int argc, char *argv[])
     int exit_code = EXIT_FAILURE;
     MSG msg = {};
 
+    // UINT_PTR idle_timer = SetTimer(0, 0, USER_TIMER_MINIMUM, &_idle_proc);
+    UINT_PTR idle_timer = SetTimer(0, 0, 50, 0);
+    hale_assert_message(idle_timer != 0, "SetTimer");
+
     app->running = 1;
+    app->parsing = 1;
+
     while(app->running)
     {
         while(PeekMessage(&msg, 0, 0, 0, PM_REMOVE))
@@ -392,6 +411,17 @@ main(HINSTANCE instance, int argc, char *argv[])
                 exit_code = (int)msg.wParam;
                 app->running = 0;
                 break;
+            }
+            else if (msg.message == WM_TIMER && msg.wParam == idle_timer && app->parsing)
+            {
+                // TODO: Do we need to do this?
+                // https://msdn.microsoft.com/en-us/library/windows/desktop/ms644901(v=vs.85).aspx#creating_timer
+                // If your application creates a timer without specifying a window handle, your application must
+                // monitor the message queue for WM_TIMER messages and dispatch them to the appropriate window.
+
+                app_on_parse_event(app);
+
+                continue;
             }
 
             TranslateMessage(&msg);
@@ -410,7 +440,7 @@ main(HINSTANCE instance, int argc, char *argv[])
             if (dt < 0.016f) {
                 Sleep((0.016f - dt) * 1000.0f);
             }
-        } else {
+        } else if (app->running) {
             WaitMessage();
         }
     }
@@ -441,12 +471,18 @@ main(HINSTANCE instance, int argc, char *argv[])
 //
 
 int CALLBACK
-WinMain(HINSTANCE hinst,
+wWinMain(HINSTANCE hinst,
         HINSTANCE hint_previous,
-        LPSTR command_line,
+        LPWSTR command_line,
         int show_code)
 {
-    return hale::main(hinst, 0, NULL);
+    int argc = 0;
+    LPWSTR *argv = CommandLineToArgvW(command_line, &argc);
+    // TODO: Parse the argv/argc to an internal vector or even the command line ast.
+    int exit_code = hale::main(hinst, (hale::s32)argc, (hale::ch16**)argv);
+    LocalFree(argv);
+
+    return exit_code;
 }
 
 #else

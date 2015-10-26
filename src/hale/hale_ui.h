@@ -1,10 +1,12 @@
 #ifndef HALE_UI_H
 #define HALE_UI_H
 
+#if HALE_INCLUDES
 #include "hale.h"
 #include "hale_document.h"
 
 #include "hale_os_ui.h"
+#endif
 
 namespace hale {
 
@@ -56,9 +58,9 @@ struct DocumentLayout
     DocumentView *session;
     Rect<r32> document_rect;
     Rect<r32> gutter_rect;
-    memi scroll_block_first_i;
-    r32 scroll_block_first_y;
-    memi scroll_block_last_i;
+    memi scroll_begin;
+    r32 scroll_begin_y;
+    memi scroll_end;
     TextFormat *base_format;
 
     CommonOptions options;
@@ -70,12 +72,12 @@ struct DocumentLayout
 DocumentLayout *document_layout(TextProcessor *text_processor, DocumentView *session);
 void document_layout_scroll_by(DocumentLayout *layout, r32 dx, r32 dy);
 void document_layout_set_viewport(DocumentLayout *layout, Rect<r32> viewport);
-void document_layout_invalidate_format(DocumentLayout *layout, memi from, memi to);
 void document_layout_layout(DocumentLayout *layout);
 void document_layout_draw(Window *window, DocumentLayout *layout);
 void document_layout_draw_cursor(Window *window, DocumentLayout *layout, DocumentPosition position);
 
 void document_layout_on_insert(DocumentLayout *layout, DocumentEdit *edit);
+void document_layout_on_format(DocumentLayout *layout, memi first, memi last);
 
 enum struct DocumentLayoutGetCursor
 {
@@ -167,8 +169,12 @@ Animation *window_add_animation(Window *window, void *key, Animation *animation)
 
 struct App
 {
+    s32    argc;
+    ch16 **argv;
+
     __App impl;
 
+    b32 parsing;
     b32 running;
     Window windows[16];
     memi windows_count;
@@ -205,6 +211,7 @@ extern App g_app;
 
 b32 app_init(App *app);
 void app_on_key_event(App *app, Window *window, KeyEvent e);
+void app_on_parse_event(App *app);
 
 struct Status
 {

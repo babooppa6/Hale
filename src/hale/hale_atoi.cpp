@@ -1,5 +1,7 @@
+#if HALE_INCLUDES
 #include "hale.h"
 #include "hale_atoi.h"
+#endif
 
 namespace hale {
 

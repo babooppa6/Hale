@@ -1,6 +1,8 @@
+#if HALE_INCLUDES
 #include "hale.h"
 #include "hale_test.h"
 #include "hale_gap_buffer.h"
+#endif
 
 #define hale_gap_buffer_gap_size(g) (g->gap_end - g->gap_start)
 

@@ -1,7 +1,9 @@
 #ifndef HALE_STRING_H
 #define HALE_STRING_H
 
+#if HALE_INCLUDES
 #include "hale_atoi.h"
+#endif
 
 namespace hale {
 
@@ -140,11 +142,11 @@ to_string(Vector<ch16> *string, memi value)
     vector_append(string, buffer, b - buffer);
 }
 
-inline void
-ch16_ch8(Memory<ch16> *memory, ch8 *string)
-{
+//inline void
+//ch16_ch8(Memory<ch16> *memory, ch8 *string)
+//{
 
-}
+//}
 
 } // namespace hale
 

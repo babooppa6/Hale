@@ -1,7 +1,9 @@
+#if HALE_INCLUDES
 #include "hale_ui.h"
 #include "hale_perf.h"
 
 #include "hale_parser_c.h"
+#endif
 
 namespace hale {
 
@@ -40,10 +42,38 @@ app_on_key_event(App *app,
     {
         HALE_PERFORMANCE_TIMER(type_character);
 
-        DocumentEdit edit;
-        document_edit(&edit, view->document, view);
-        document_insert(&edit, e.codepoint);
-        window_invalidate(window);
+        // TODO: For inserting the new line, we can perhaps make a special document_insert.
+        if (e.codepoint >= 0x20 || e.codepoint == 0x0D)
+        {
+            DocumentEdit edit;
+            document_edit(&edit, view->document, view);
+            document_insert(&edit, e.codepoint);
+            window_invalidate(window);
+        }
+    }
+}
+
+void
+app_on_parse_event(App *app)
+{
+    // TODO: I need to have means of telling whether the visible document has been parsed.
+    Window *window;
+    Panel *panel;
+    b32 actually_did_something;
+    for (memi w = 0; w != app->windows_count; ++w)
+    {
+        window = &app->windows[w];
+        actually_did_something = 0;
+        for (memi p = 0; p != window->panels_count; ++p)
+        {
+            panel = &window->panels[p];
+            if (DOCUMENT_PARSER_WORKING(panel->document_view->document)) {
+                actually_did_something |= document_parse_partial(panel->document_view->document) != 0;
+            }
+        }
+        if (actually_did_something) {
+            window_invalidate(window);
+        }
     }
 }
 
@@ -56,10 +86,13 @@ window_init(Window *window)
 {
     static Document document;
     document_init(&document);
-    // document_load(&document, (ch8*)(__PROJECT__ "tests/jquery-2.1.4.min.js"));
-    // document_load(&document, (ch8*)(__PROJECT__ "tests/hale_fixed_gap_buffer.cpp"));
+    CParser parser;
+    document_parse_set(&document, &parser);
 
-    document.parser = CParser();
+    App *app = window->app;
+    if (app->argc != 0) {
+        document_load(&document, app->argv[0]);
+    }
 
     document_add_view(&document, &window->text_processor);
     Panel *panel = &window->panels[0];
@@ -153,7 +186,7 @@ window_scroll_by(Window *window, r32 x, r32 y, r32 delta_x, r32 delta_y)
     Panel *panel = &window->panels[0];
 
     // TODO: Store the animation with (?) the DocumentView we're scrolling in.
-    void *key = &panel->document_view->layout->scroll_block_first_i;
+    void *key = &panel->document_view->layout->scroll_begin;
     Animation *a = window_get_animation(window, key);
     if (a == 0) {
         Animation animation = {};

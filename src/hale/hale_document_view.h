@@ -1,9 +1,11 @@
-#ifndef HALE_DOCUMENT_view_H
-#define HALE_DOCUMENT_view_H
+#ifndef HALE_DOCUMENT_VIEW_H
+#define HALE_DOCUMENT_VIEW_H
 
+#if HALE_INCLUDES
 #include "hale.h"
 #include "hale_encoding.h"
 #include "hale_document_types.h"
+#endif
 
 namespace hale {
 
@@ -41,7 +43,9 @@ DocumentView *
 document_add_view(Document *document, TextProcessor *text_processor);
 void document_remove_view(DocumentView *view);
 
+// TODO: inline
 void document_insert(DocumentEdit *edit, ch16 *text, memi text_length);
+// TODO: inline
 void document_insert(DocumentEdit *edit, ch32 codepoint);
 
 void document_view_on_insert(DocumentView *view, DocumentEdit *edit);
@@ -57,5 +61,5 @@ void document_view_move_cursor(DocumentView *view, MoveCursor move_cursor_functi
 
 }
 
-#endif // HALE_DOCUMENT_view_H
+#endif // HALE_DOCUMENT_VIEW_H
 

@@ -1,12 +1,20 @@
 #ifndef HALE_STREAM_H
 #define HALE_STREAM_H
 
+#if HALE_INCLUDES
 #include "hale.h"
+#endif
 
 namespace hale {
 
 inline err
 open(File *file, const ch8 *path, u32 flags)
+{
+    return platform.open_file(file, path, flags);
+}
+
+inline err
+open(File *file, const ch16 *path, u32 flags)
 {
     return platform.open_file(file, path, flags);
 }

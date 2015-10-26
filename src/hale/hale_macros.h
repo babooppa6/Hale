@@ -113,7 +113,7 @@ static_assert(
 #define hale_align_8(Value) ((Value + 7) & ~7)
 #define hale_align_16(Value) ((Value + 15) & ~15)
 
-#define hale_u(S) ((ch16*)L#S)
+#define hale_u(S) ((ch16*)L##S)
 
 }
 

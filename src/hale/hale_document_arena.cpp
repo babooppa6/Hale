@@ -1,7 +1,9 @@
+#if HALE_INCLUDES
 #include "hale.h"
 #include "hale_document.h"
 #include "hale_stream.h"
 #include "hale_encoding.h"
+#endif
 
 namespace hale {
 
@@ -24,7 +26,7 @@ namespace hale {
 //}
 
 err
-document_load(Document *document, const ch8 *path)
+document_load(Document *document, const ch16 *path)
 {
     hale_assert(document);
     hale_assert(path && *path);

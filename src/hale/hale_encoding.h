@@ -1,8 +1,10 @@
 #ifndef HALE_ENCODING_H
 #define HALE_ENCODING_H
 
+#if HALE_INCLUDES
 #include "hale.h"
 #include "hale_encoding_mib.h"
+#endif
 
 //#define HALE_UTF16_SUR_H_START  (u32)0xD800
 //#define HALE_UTF16_SUR_H_END    (u32)0xDBFF
@@ -72,7 +74,6 @@ codec(typename EncodingInfo<In>::Storage  **in,
     CodecReturn ret = CodecReturn::Success;
     for (;;)
     {
-        ch8 h = **in;
         *in = utf32_from<In>(s, *in);
 
         if (s->input_state == EncodingInfo<In>::Accept || s->input_state == EncodingInfo<In>::MultiOut)
