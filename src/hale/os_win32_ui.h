@@ -19,6 +19,7 @@ struct __Window
 {
     HWND handle;
     s32 wheel_delta;
+    b32 invalidated;
 
     __WINDOW_IMPL
 };
@@ -28,6 +29,7 @@ struct __App
     HINSTANCE instance;
     r64 animations_time;
     memi animations_count;
+    UINT_PTR parsing_timer;
 
     __APP_IMPL;
 };

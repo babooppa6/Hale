@@ -64,7 +64,7 @@ struct TextLayout
 {
     // Common
     TextFormat *base;
-
+    memi text_length;
     // Platform
     IDWriteTextLayout *w_layout;
     DWRITE_TEXT_METRICS w_metrics;

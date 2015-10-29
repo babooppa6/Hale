@@ -181,6 +181,16 @@ vector_remove(Vector<T> *vector, T* begin, memi count)
 
 template<typename T>
 inline void
+vector_remove(Vector<T> *vector, memi offset, memi count)
+{
+    auto b = vector->v_->begin() + offset;
+    auto e = b + count;
+    vector->v_->erase(b, e);
+    vector->count_ -= count;
+}
+
+template<typename T>
+inline void
 vector_remove(Vector<T> *vector, T* begin, T* end)
 {
     auto b = vector->v_->begin() + (memi)(begin - vector_begin(vector));

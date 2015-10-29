@@ -7,7 +7,7 @@ rem Compiler options: https://msdn.microsoft.com/en-us/library/fwkeyyhe.aspx
 rem Linker options:   https://msdn.microsoft.com/en-US/library/y0zzbyt4.aspx
 
 set DebugCompilerOptions=/MTd /Od /Oi /Z7
-set ReleaseCompilerOptions=/MT /Ox
+set ReleaseCompilerOptions=/MT /Ox /Z7
 set CompilerOptions=%ReleaseCompilerOptions% /Gm- /GR- /EHa- /FC -fp:fast /D_HAS_EXCEPTIONS=0 /DHALE_STU
 rem /opt:ref
 set LinkerOptions=/subsystem:windows,6 /incremental:no

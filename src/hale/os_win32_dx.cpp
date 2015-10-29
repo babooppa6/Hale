@@ -1,6 +1,7 @@
 #if HALE_INCLUDES
 #include "hale_ui.h"
 #include "hale_document.h"
+#include "os_win32_dx.h"
 #endif
 
 #include <d2d1.h>
@@ -494,6 +495,7 @@ text_layout(TextProcessor *text_processor,
         return 0;
     }
 
+    layout->text_length = text_length;
     layout->w_layout->GetMetrics(&layout->w_metrics);
 
     return 1;
@@ -547,17 +549,26 @@ _text_layout_update_formats(TextProcessor *text_processor,
         //     - There is, my friend, just implement your own
         //       TextRenderer or TextLayout.
         r.startPosition = token->begin;
+//        r.length = token->end == HALE_TOKEN_INFINITY ? layout->text_length
+//                                                     : token->end - token->begin;
         r.length = token->end - token->begin;
         switch (token->id)
         {
+        case 2:
+        case 3:
         case 4: // CommentBlock
             hr = wl->SetDrawingEffect(text_processor->impl._d_brushes[0], r);
             hale_assert(SUCCEEDED(hr));
             wl->SetFontStyle(DWRITE_FONT_STYLE_ITALIC, r);
             break;
+        case 5:
+        case 6:
         case 7: // StringQuotedDouble
             hr = wl->SetDrawingEffect(text_processor->impl._d_brushes[1], r);
-            hale_assert(SUCCEEDED(hr));
+            if (FAILED(hr)) {
+                win32_print_error("wl->SetDrawingEffect");
+                hale_error("wl->SetDrawingEffect");
+            }
             wl->SetFontWeight(DWRITE_FONT_WEIGHT_BOLD, r);
             break;
         }
@@ -614,7 +625,7 @@ _get_block(DocumentLayout *layout, memi block_index)
 
         memi count = document_block_length_without_le(document, block_index);
         memi begin = document_block_begin(document, block_index);
-        text.reallocate(count);
+        text.allocate(count);
         text.count = count;
         document_text(document, begin, count, text.e, count);
 
@@ -824,17 +835,34 @@ document_layout_on_insert(DocumentLayout *layout, DocumentEdit *edit)
 
     if (edit->blocks_changed_count)
     {
-        // qDebug() << (*blocks)[0].flags << (*blocks)[1].flags << (*blocks)[2].flags << (*blocks)[3].flags;
         __DocumentLayout::Block block = {};
         vector_insert(blocks,
                       edit->blocks_changed_at,
                       edit->blocks_changed_count,
                       block);
-        // qDebug() << (*blocks)[0].flags << (*blocks)[1].flags << (*blocks)[2].flags << (*blocks)[3].flags;
     }
 
-    // NOTE(cohen): Do after we insert blocks.
-    (*blocks)[edit->block_changed].flags &= ~(__DocumentLayout::TextValid | __DocumentLayout::FormatValid);
+    (*blocks)[edit->block_changed].flags &=
+            ~(__DocumentLayout::TextValid | __DocumentLayout::FormatValid);
+
+    layout->impl.layout_invalid = 1;
+}
+
+void
+document_layout_on_remove(DocumentLayout *layout, DocumentEdit *edit)
+{
+    Vector<__DocumentLayout::Block> *blocks = &layout->impl.blocks;
+
+    if (edit->blocks_changed_count)
+    {
+        __DocumentLayout::Block block = {};
+        vector_remove(blocks,
+                      edit->blocks_changed_at,
+                      edit->blocks_changed_count);
+    }
+
+    (*blocks)[edit->block_changed].flags &=
+            ~(__DocumentLayout::TextValid | __DocumentLayout::FormatValid);
 
     layout->impl.layout_invalid = 1;
 }

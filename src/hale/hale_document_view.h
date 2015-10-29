@@ -48,7 +48,18 @@ void document_insert(DocumentEdit *edit, ch16 *text, memi text_length);
 // TODO: inline
 void document_insert(DocumentEdit *edit, ch32 codepoint);
 
+enum RemoveCommand
+{
+    Remove_All,
+    Remove_Selected,
+    Remove_CharacterBackward,
+    Remove_CharacterForward
+};
+
+void document_remove(DocumentEdit *edit, RemoveCommand command);
+
 void document_view_on_insert(DocumentView *view, DocumentEdit *edit);
+void document_view_on_remove(DocumentView *view, DocumentEdit *edit);
 void document_view_scroll_by(DocumentView *view, r32 dx, r32 dy);
 void document_view_scroll_to(DocumentView *view, r32 x, r32 y);
 

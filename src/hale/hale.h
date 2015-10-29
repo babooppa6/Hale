@@ -5,7 +5,7 @@
 #include "hale_config.h"
 #include "hale_macros.h"
 #include "hale_types.h"
-#include "hale_atoi.h"
+#include "hale_itoa.h"
 #include "hale_math.h"
 #include "hale_math_interpolation.h"
 #include "hale_util.h"

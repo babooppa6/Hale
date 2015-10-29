@@ -3,7 +3,7 @@
 // #include <stdint.h>
 // #include <float.h>
 #include "hale_types.h"
-#include "hale_atoi.h"
+#include "hale_itoa.h"
 // #include <cmath>
 #include "hale_math.h"
 #include "hale_math_interpolation.h"
@@ -49,7 +49,7 @@
 #include "hale_perf.h"
 
 #include "hale.cpp"
-#include "hale_atoi.cpp"
+#include "hale_itoa.cpp"
 #include "hale_document.cpp"
 #include "hale_document_arena.cpp"
 #include "hale_document_parse.cpp"

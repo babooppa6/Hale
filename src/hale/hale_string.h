@@ -2,7 +2,7 @@
 #define HALE_STRING_H
 
 #if HALE_INCLUDES
-#include "hale_atoi.h"
+#include "hale_itoa.h"
 #endif
 
 namespace hale {
@@ -50,6 +50,8 @@ string_length(const ch8 *string)
     return it - string;
 }
 
+
+// TODO: Optimize.
 inline memi
 string_length(const ch16 *string)
 {
@@ -59,6 +61,48 @@ string_length(const ch16 *string)
     }
     return it - string;
 }
+
+inline memi string_length(const char *string) { return string_length((ch8*)string); }
+inline memi string_length(const wchar_t *string) { return string_length((ch16*)string); }
+
+// TODO: ANSI or UTF8 version?
+template<typename SinkT>
+inline SinkT &
+sink(SinkT &s, const ch8 *value)
+{
+    hale_assert_input(value);
+    memi count = string_length(value);
+    ch16 *ptr = s.push(count, 0);
+    for (memi i = 0; i != count; i++) {
+        *ptr++ = *value++;
+    }
+    return s;
+}
+
+template<typename SinkT>
+inline SinkT &
+sink(SinkT &s, const char *value)
+{
+    return sink(s, (const ch8*)value);
+}
+
+template<typename SinkT>
+inline SinkT &sink(SinkT &s, const ch16 *value)
+{
+    hale_assert_input(value);
+    memi count = string_length(value);
+    ch16 *ptr = s.push(count, 0);
+    memory_copy((ch16*)ptr, (ch16*)value, count);
+    return s;
+}
+
+template<typename SinkT>
+inline SinkT &
+sink(SinkT &s, const wchar_t *value)
+{
+    return sink(s, (ch16*)value);
+}
+
 
 #if 0
 inline void
@@ -137,7 +181,7 @@ inline void
 to_string(Vector<ch16> *string, memi value)
 {
     ch16 buffer[24];
-    ch16 *b = itoa<BranchLut, memi, ch16>(value, buffer);
+    ch16 *b = itoa<memi, ch16>(value, buffer);
     hale_assert_debug((b-buffer) < 21);
     vector_append(string, buffer, b - buffer);
 }

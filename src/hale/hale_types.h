@@ -38,7 +38,19 @@ typedef uint16 u16;
 typedef uint32 u32;
 typedef uint64 u64;
 
-#define HALE_R32_MAX (FLT_MAX)
+#define HALE_R32_MAX  (FLT_MAX)
+#define HALE_R64_MAX  (DBL_MAX)
+
+#define HALE_S16_MAX  (INT16_MAX)
+#define HALE_U16_MAX  (UINT16_MAX)
+
+#define HALE_S32_MAX  (INT32_MAX)
+#define HALE_U32_MAX  (UINT32_MAX)
+
+#define HALE_S64_MAX  (INT64_MAX)
+#define HALE_U64_MAX  (UINT64_MAX)
+
+#define HALE_MEMI_MAX (SIZE_MAX)
 
 static_assert(sizeof(wchar_t) == sizeof(u16), "wchar_t");
 static_assert(sizeof(char) == sizeof(u8), "char");

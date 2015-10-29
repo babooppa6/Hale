@@ -265,7 +265,15 @@ _window_init(App *app, Window *window, WNDCLASSA *window_class)
 void
 window_invalidate(Window *window)
 {
+    // TODO: To get an extreme redraw speed, we can first redraw the primary
+    //       section of the screen (the edited line) and then go to other parts.
+    // window->invalidated = 1;
+
+#if 1
     InvalidateRect(window->impl.handle, NULL, FALSE);
+#else
+    __os_window_paint(window);
+#endif
 }
 
 //
@@ -354,14 +362,31 @@ _run_animations(App *app, r32 dt)
 //
 // *********************************************************************************
 
+void
+app_resume_parsing(App *app)
+{
+    if (app->impl.parsing_timer == 0) {
+        Print() << "Starting parsing timer.";
+        app->impl.parsing_timer = SetTimer(0, 0, 50, 0);
+        hale_assert_message(app->impl.parsing_timer != 0, "SetTimer");
+    }
+}
+
+void
+app_suspend_parsing(App *app)
+{
+    if (app->impl.parsing_timer) {
+        Print() << "Killing parsing timer.";
+        KillTimer(0, app->impl.parsing_timer);
+        app->impl.parsing_timer = 0;
+    }
+}
+
 int
 main(HINSTANCE instance, s32 argc, ch16 *argv[])
 {
-    Memory<u64> memory;
-    memory.allocate(16);
-    memory_push(&memory, 1);
-
     App *app = (App*)malloc(sizeof(App));
+
     *app = {};
     app->argc = argc;
     app->argv = argv;
@@ -396,11 +421,8 @@ main(HINSTANCE instance, s32 argc, ch16 *argv[])
     MSG msg = {};
 
     // UINT_PTR idle_timer = SetTimer(0, 0, USER_TIMER_MINIMUM, &_idle_proc);
-    UINT_PTR idle_timer = SetTimer(0, 0, 50, 0);
-    hale_assert_message(idle_timer != 0, "SetTimer");
 
     app->running = 1;
-    app->parsing = 1;
 
     while(app->running)
     {
@@ -412,14 +434,13 @@ main(HINSTANCE instance, s32 argc, ch16 *argv[])
                 app->running = 0;
                 break;
             }
-            else if (msg.message == WM_TIMER && msg.wParam == idle_timer && app->parsing)
+            else if (app->impl.animations_count == 0 && msg.message == WM_TIMER && msg.wParam == app->impl.parsing_timer)
             {
-                // TODO: Do we need to do this?
-                // https://msdn.microsoft.com/en-us/library/windows/desktop/ms644901(v=vs.85).aspx#creating_timer
-                // If your application creates a timer without specifying a window handle, your application must
-                // monitor the message queue for WM_TIMER messages and dispatch them to the appropriate window.
-
-                app_on_parse_event(app);
+                // TODO: Try to implement without the timer, with our
+                //       idle monitoring / interleaving.
+                if (app_on_parse_event(app) == 0) {
+                    app_suspend_parsing(app);
+                }
 
                 continue;
             }
@@ -462,13 +483,21 @@ main(HINSTANCE instance, s32 argc, ch16 *argv[])
 
 } // namespace hale
 
-#if 1
+//
+//
+//
 
-#ifdef HALE_STU
+//
+//
+//
 
 //
 // Build with bat file.
 //
+
+#if HALE_TEST
+#include "test.h"
+#endif
 
 int CALLBACK
 wWinMain(HINSTANCE hinst,
@@ -477,43 +506,17 @@ wWinMain(HINSTANCE hinst,
         int show_code)
 {
     int argc = 0;
-    LPWSTR *argv = CommandLineToArgvW(command_line, &argc);
+	LPWSTR *argv = 0;
+	if (*command_line != 0) {
+		argv = CommandLineToArgvW(command_line, &argc);
+	}
     // TODO: Parse the argv/argc to an internal vector or even the command line ast.
-    int exit_code = hale::main(hinst, (hale::s32)argc, (hale::ch16**)argv);
+#if HALE_TEST
+    int exit_code = hale::test_main((hale::s32)argc, (hale::ch**)argv);
+#else
+    int exit_code = hale::main(hinst, (hale::s32)argc, (hale::ch**)argv);
+#endif
     LocalFree(argv);
 
     return exit_code;
 }
-
-#else
-
-//
-// Build inside the Qt.
-//
-
-int
-main(int argc, char *argv[])
-{
-    HINSTANCE hinst = GetModuleHandle(0);
-    return hale::main(hinst, argc, argv);
-}
-
-#   endif
-
-#else
-
-#include "hale_test_document.cpp"
-#include "hale_test_encoding.cpp"
-
-int
-main(int argc, char *argv[])
-{
-    win32_app app = {};
-
-    hale::test_encoding();
-    hale::test_document();
-
-    return 0;
-}
-
-#endif

@@ -7,6 +7,43 @@ struct DocumentPosition
 {
     memi block;
     memi position;
+
+    bool operator ==(const DocumentPosition &other) const
+    { return block == other.block && position == other.position; }
+    bool operator !=(const DocumentPosition &other) const
+    { return block != other.block || position != other.position; }
+
+    bool operator >(const DocumentPosition &other) const
+    {
+        if (block == other.block) {
+            return position > other.position;
+        }
+        return block > other.block;
+    }
+
+    bool operator <(const DocumentPosition &other) const
+    {
+        if (block == other.block) {
+            return position < other.position;
+        }
+        return block < other.block;
+    }
+
+    bool operator >=(const DocumentPosition &other) const
+    {
+        if (block == other.block) {
+            return position >= other.position;
+        }
+        return block >= other.block;
+    }
+
+    bool operator <=(const DocumentPosition &other) const
+    {
+        if (block == other.block) {
+            return position <= other.position;
+        }
+        return block <= other.block;
+    }
 };
 
 struct DocumentRange

@@ -77,6 +77,7 @@ void document_layout_draw(Window *window, DocumentLayout *layout);
 void document_layout_draw_cursor(Window *window, DocumentLayout *layout, DocumentPosition position);
 
 void document_layout_on_insert(DocumentLayout *layout, DocumentEdit *edit);
+void document_layout_on_remove(DocumentLayout *layout, DocumentEdit *edit);
 void document_layout_on_format(DocumentLayout *layout, memi first, memi last);
 
 enum struct DocumentLayoutGetCursor
@@ -174,8 +175,9 @@ struct App
 
     __App impl;
 
-    b32 parsing;
+    s32 parsing;
     b32 running;
+
     Window windows[16];
     memi windows_count;
 
@@ -210,8 +212,10 @@ struct KeyEvent
 extern App g_app;
 
 b32 app_init(App *app);
+void app_suspend_parsing(App *app);
+void app_resume_parsing(App *app);
 void app_on_key_event(App *app, Window *window, KeyEvent e);
-void app_on_parse_event(App *app);
+b32  app_on_parse_event(App *app);
 
 struct Status
 {

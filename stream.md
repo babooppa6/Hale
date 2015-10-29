@@ -1,16 +1,33 @@
-- Opening file from command line
-- Fix bug with layouting and scrolling the text.
-* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-- Parser and syntax highlighting at least for basic C grammar.
-- Remove text and delete/backspace commands.
-- Saving file via a shortcut (Ctrl+S)
-- Undo QDataStream replacement
+# Notes from the Stream
 
-simple_print_float(float64 number, uint16 digits = 3, bool32 sign = True, bool32 sign_if_positive)
-https://www.refheap.com/41a61e226d06278aa004ab332
+This is my personal document I keep to collect ideas, links and music that happen during the streams on http://twitch.tv/martincohen for anyone wanting to check back on it.
+
+# Stack
+
+* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
++ Remove text and delete/backspace commands.
+# Fix parser not re-parsing the lines (probably only the first line).
+* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
++ Undo
+	+ QDataStream replacement for Undo
++ Saving file via a shortcut (Ctrl+S)
+----------------------------------------------------------------------------------------
+
++ Get rid of current implementation of memory_push, use it only for inserting more items (with optionally growing when the limit is reached).
+	+ For pushing more memory (without incrementing the count), implement memory_push_capacity(memory, capacity)
++ Selections
++ Command line
++ Multiple cursors
++ Splits (at least to see two views on one document)
++ Command scopes & configuration
+
 
 # Later
 
+- Parsing
+	- String interning / symbols for parser.
+	- Make sure that the tokens are never overlapped. Although,... do we really need that?
+		+ Might even want to add a rule, that every new token should only be placed at position >= last_token.begin
 - Keep 0.5 multiplies of the base font's line height to keep the rhythm of the rendered text.
 - Selections
 	+ Custom DirectWrite Renderer
@@ -87,8 +104,25 @@ d:\progs\ffmpeg\bin\ffmpeg -i "Hale (text editor) Document Rendering-v21604211.m
 - Going without standard libraries. (Platform46)
 - http://www.valvesoftware.com/publications/2007/SIGGRAPH2007_AlphaTestedMagnification.pdf
 
+# Timelapse List
+
+- https://www.youtube.com/watch?v=c17k4LfLkaE
+- http://music.paniq.cc/album/from-zero-to-hero
+- https://soundcloud.com/martincohen/sets/handmade
+
+## ZX
+
+- https://www.youtube.com/watch?v=d8_m8gXjmmM (typhoon, zx)
+- 
+
 # Notes
 
+- simple_print_float(float64 number, uint16 digits = 3, bool32 sign = True, bool32 sign_if_positive)
+    + https://www.refheap.com/41a61e226d06278aa004ab332
+- Heap allocated stack work memory for procedures that require dynamic memory.
+	+ temp_memory = work_memory.push(size) -- allocates the memory in the heap
+	+ temp_memory = work_memory.pop() -- removes the top-allocated block.
+- Check if there's a donation for nightbot
 - TDB - optimized branch of mingw
 - No StdLib
 	- https://forums.handmadehero.org/index.php/forum?view=topic&catid=4&id=79

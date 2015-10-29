@@ -1,5 +1,6 @@
 #if HALE_INCLUDES
-#include "hale.h"
+#include "hale_macros.h"
+#include "hale_types.h"
 #include "hale_gap_buffer.h"
 #include "hale_document.h"
 #endif
@@ -14,12 +15,6 @@ namespace hale {
 // TODO: Is there any way we can notify the views in less granular way? Ideally when the edit is committed? Can we keep a list of edits for that? Maybe even a fixed array that'll get "flushed" when it's full.
 
 hale_internal inline void
-_notify_views_about_block_updated(DocumentEdit *edit)
-{
-
-}
-
-hale_internal inline void
 _notify_views_about_insert(DocumentEdit *edit)
 {
     for (memi i = 0; i != edit->document->views_count; i++) {
@@ -28,21 +23,25 @@ _notify_views_about_insert(DocumentEdit *edit)
 }
 
 hale_internal inline void
-_notify_views_about_blocks_abnered(DocumentEdit *edit)
+_notify_views_about_abner(DocumentEdit *edit)
 {
-
+    for (memi i = 0; i != edit->document->views_count; i++) {
+        document_view_on_remove(&edit->document->views[i], edit);
+    }
 }
 
 hale_internal inline void
 _notify_views_about_edit_begin(DocumentEdit *edit)
 {
-
+    hale_unused(edit);
+    // hale_not_implemented;
 }
 
 hale_internal inline void
 _notify_views_about_edit_end(DocumentEdit *edit)
 {
-
+    hale_unused(edit);
+    // hale_not_implemented;
 }
 
 //
@@ -195,6 +194,8 @@ document_view_release(DocumentView *session);
 void
 document_init(Document *document)
 {
+    *document = {};
+
     document->arena = 0;
 
     vector_init(&document->path);
@@ -204,12 +205,6 @@ document_init(Document *document)
     document->indentation_size = 4;
 
     // document->undo = new UndoStream(NULL);
-
-    // Parser
-    document->parser_status = 0;
-    document->parser_head = 0;
-    // vector_init(&document->parser_state.stack);
-    // document->parser = new Parser();
 
     document->indentation_size = 4;
     document->indentation_mode = IndentationMode::Spaces;
@@ -306,14 +301,14 @@ document_set_indentation_size(Document *document, u32 indentation_size)
 //
 
 hale_internal void
-check_edit(DocumentEdit *edit)
+_check_edit(DocumentEdit *edit)
 {
     hale_assert(edit);
     hale_assert(edit->view || edit->undo || edit->internal);
 }
 
 hale_internal void
-write_undo(DocumentEdit *edit, s32 type, memi offset, memi length)
+_write_undo(DocumentEdit *edit, s32 type, memi offset, memi length)
 {
 #if 0
     if (edit->undo) {
@@ -487,32 +482,22 @@ document_block_at(Document *document, memi offset, memi search_begin, memi searc
 void
 document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi text_length)
 {
-    check_edit(edit);
-
-    // TODO(cohen) Protect insertText in release.
-
-    // TODO(cohen) If a new line is inserted at the beginning of a line,
-    // that line will remain untouched (by changed or added callbacks).
-    // We need to take care to not let line changes affect breakpoints, line data, etc.
-    // That will also make it easier to reuse data in editor.
+    _check_edit(edit);
 
     auto document = edit->document;
-
+    memi old_document_end = _buffer_length(document->buffer);
     hale_assert(is_valid_position(document, position));
-
-    // TODO: emit beforeTextChanged();
 
     edit->type = DocumentEdit::Insert;
     // edit->undo_head = document->undo->writingHead();
     edit->offset_begin = position_to_offset(document, position);
-
-    memi old_document_end = _buffer_length(document->buffer);
 
     Vector<memi> offsets;
     vector_init(&offsets);
     text_length = convert_and_insert(document, edit->offset_begin, text, text_length, &offsets);
 
     edit->offset_end = edit->offset_begin + text_length;
+    edit->length = text_length;
 
     edit->blocks_changed_count = vector_count(offsets);
 
@@ -522,13 +507,18 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
     } else if (position.position == 0) {
         // Inserting at the beginning of a block.
 
-        if (edit->offset_begin == old_document_end) {
+        if (edit->offset_begin == 0) {
+            // Inserting at document begin.
+            edit->block_changed = position.block + vector_count(offsets);
+            edit->blocks_changed_at = position.block;
+        } else if (edit->offset_begin == old_document_end) {
             // If we're inserting at the end of the document to an empty block.
             edit->block_changed = position.block;
             edit->blocks_changed_at = position.block + 1;
         } else {
             // Anywhere at the block begin.
-            // If we're inserting at the beginning of a block, it's quite possible, that actually nothing changes.
+            // If we're inserting at the beginning of a block,
+            // it's quite possible, that actually nothing changes.
             // But that depend on the things that use this notification.
             edit->block_changed = position.block + vector_count(offsets);
             edit->blocks_changed_at = position.block;
@@ -543,10 +533,6 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
     // Blocks
     //
 
-    // TODO: Invalidate the block also for the sessions.
-
-    // Insert new blocks.
-
     if (edit->blocks_changed_count > 0)
     {
         Document::Block block = {};
@@ -558,13 +544,11 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
                       vector_count(offsets),
                       block);
 
-        // TODO: Insert the blocks also to the sessions.
         for (memi i = 0; i != edit->blocks_changed_count; i++) {
             document->blocks[position.block + i].end = offsets[i];
         }
     }
 
-    // Shift the offsets.
     for (memi i = position.block + edit->blocks_changed_count;
          i != vector_count(document->blocks);
          i++)
@@ -572,43 +556,81 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
         document->blocks[i].end += text_length;
     }
 
-    // Invalidate the changed block.
-    // Must be done after we insert the blocks.
     document->blocks[edit->block_changed].flags = Document::Block::F_TextChanged;
 
     edit->pos_begin = position;
     edit->pos_end = position_plus_offset(document, edit->pos_begin, text_length);
 
+    // _write_undo(edit, Document::UndoEvent_Insert, edit->offset_begin, text_length);
 
     // Invalidate block
+    // Call this before we go for document_parse, so that the view's
+    // is actually updated.
     _notify_views_about_insert(edit);
 
-    //
-    // Undo
-    //
-
-    // write_undo(edit, Document::UndoEvent_Insert, edit->offset_begin, text_length);
-
-    //
-    // Parser
-    //
-
     // Move the parser head
-    document_parse_set_head(document, edit->pos_begin.block);
-    // TODO(cohen): If the time distance between caret types is small,
-    //              do not parse immediately.
-    document_parse_immediate(document, edit->pos_end.block + 1);
-
-    // TODO: emit textChanged(&edit);
+    if (document_parser_set_head(document, edit->pos_begin.block)) {
+        // TODO(cohen): If the time distance between caret types is small,
+        //              do not parse immediately.
+        document_parse(document, 0.01f);
+    }
 }
 
 void
-document_abner(DocumentEdit *edit, DocumentPosition position, memi length)
+document_abner(DocumentEdit *edit, DocumentPosition begin, DocumentPosition end)
 {
-    hale_unused(edit);
-    hale_unused(position);
-    hale_unused(length);
-    hale_not_implemented;
+    hale_assert_input(begin <= end);
+    _check_edit(edit);
+
+    auto document = edit->document;
+    hale_assert(is_valid_position(document, begin));
+    hale_assert(is_valid_position(document, end));
+
+    edit->offset_begin = position_to_offset(document, begin);
+    edit->offset_end = position_to_offset(document, end);
+
+    edit->length = edit->offset_end - edit->offset_begin;
+    if (edit->length == 0) {
+        return;
+    }
+
+    edit->type = DocumentEdit::Remove;
+    edit->pos_begin = begin;
+    edit->pos_end = end;
+
+    edit->block_changed = begin.block;
+    edit->blocks_changed_count = edit->pos_end.block - edit->pos_begin.block;
+
+    // _write_undo(edit, UndoE)
+
+    _buffer_remove(&document->buffer, edit->offset_begin, edit->length);
+    if (edit->blocks_changed_count) {
+        vector_remove(&document->blocks,
+                      edit->pos_begin.block,
+                      edit->pos_end.block - edit->pos_begin.block);
+
+        edit->blocks_changed_at = begin.block + 1;
+    } else {
+        edit->blocks_changed_at = begin.block;
+    }
+
+    for (memi i = begin.block;
+         i != vector_count(document->blocks);
+         i++)
+    {
+        document->blocks[i].end -= edit->length;
+    }
+
+    document->blocks[edit->block_changed].flags = Document::Block::F_TextChanged;
+
+    // Move the parser head
+    if (document_parser_set_head(document, edit->pos_begin.block)) {
+        // TODO(cohen): If the time distance between caret types is small,
+        //              do not parse immediately.
+        document_parse(document, 0.01f);
+    }
+
+    _notify_views_about_abner(edit);
 }
 
 void

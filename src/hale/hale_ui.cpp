@@ -7,6 +7,11 @@
 
 namespace hale {
 
+#if HALE_DEBUG
+hale_global r64 _keystroke_time = 0;
+hale_global b32 _keystroke = 0;
+#endif
+
 //
 //
 //
@@ -23,7 +28,13 @@ app_on_key_event(App *app,
                  Window *window,
                  KeyEvent e)
 {
+#if HALE_DEBUG
+    _keystroke = 1;
+    _keystroke_time = platform.read_time_counter();
+#endif
+
     DocumentView *view = window->panels[0].document_view;
+    DocumentEdit edit;
     if (e.type == KeyEvent::KeyDown)
     {
         switch (e.vkey)
@@ -36,16 +47,20 @@ app_on_key_event(App *app,
             document_view_move_cursor(view, cursor_previous_character);
             window_invalidate(window);
         } break;
+        case VK_BACK: {
+            document_edit(&edit, view->document, view);
+            document_remove(&edit, Remove_CharacterBackward);
+            window_invalidate(window);
+        } break;
         }
     }
     else if (e.type == KeyEvent::Text)
     {
-        HALE_PERFORMANCE_TIMER(type_character);
+        // HALE_PERFORMANCE_TIMER(type_character);
 
         // TODO: For inserting the new line, we can perhaps make a special document_insert.
         if (e.codepoint >= 0x20 || e.codepoint == 0x0D)
         {
-            DocumentEdit edit;
             document_edit(&edit, view->document, view);
             document_insert(&edit, e.codepoint);
             window_invalidate(window);
@@ -54,27 +69,44 @@ app_on_key_event(App *app,
 }
 
 void
+notify_document_needs_parsing(Document *document)
+{
+    app_resume_parsing(document->app);
+}
+
+b32
 app_on_parse_event(App *app)
 {
-    // TODO: I need to have means of telling whether the visible document has been parsed.
+    // HALE_PERFORMANCE_TIMER(app_on_parse_event);
+
     Window *window;
     Panel *panel;
-    b32 actually_did_something;
+    memi parsed_blocks = 0;
+    memi pb = 0;
     for (memi w = 0; w != app->windows_count; ++w)
     {
         window = &app->windows[w];
-        actually_did_something = 0;
+        pb = 0;
         for (memi p = 0; p != window->panels_count; ++p)
         {
             panel = &window->panels[p];
-            if (DOCUMENT_PARSER_WORKING(panel->document_view->document)) {
-                actually_did_something |= document_parse_partial(panel->document_view->document) != 0;
+            if (document_parser_is_working(panel->document_view->document)) {
+                pb += document_parse(panel->document_view->document, 0.02f);
             }
         }
-        if (actually_did_something) {
+        if (pb) {
+            parsed_blocks += pb;
+            // TODO: Invalidate only if the change happened in the
+            //       visible portion of the document.
             window_invalidate(window);
         }
     }
+
+    if (parsed_blocks) {
+        Print() << __FUNCTION__ << hale_ch("Parsed blocks: ") << parsed_blocks;
+    }
+
+    return 1;
 }
 
 //
@@ -86,11 +118,12 @@ window_init(Window *window)
 {
     static Document document;
     document_init(&document);
-    CParser parser;
-    document_parse_set(&document, &parser);
+    document.app = window->app;
 
     App *app = window->app;
     if (app->argc != 0) {
+        // %{sourceDir}\hale\tests\test-large.cpp
+		// ..\src\hale\tests\test-large.cpp
         document_load(&document, app->argv[0]);
     }
 
@@ -126,6 +159,9 @@ window_init(Window *window)
 
     window->panels_count = 1;
 
+    ParserC parser;
+    document_parser_set(&document, &parser);
+
     return 1;
 }
 
@@ -145,13 +181,22 @@ window_layout(Window *window)
 void
 window_render(Window *window)
 {
-    HALE_PERFORMANCE_TIMER(window_render);
+//    HALE_PERFORMANCE_TIMER(window_render);
     Panel *panel;
     for (memi i = 0; i != window->panels_count; i++)
     {
         panel = &window->panels[i];
         panel_render(panel);
     }
+
+#if HALE_DEBUG
+    if (_keystroke) {
+        r64 t = platform.read_time_counter();
+        // Print() << __FUNCTION__ << "Keystroke Time" << ((t - _keystroke_time) * 1e3) << "ms";
+        _keystroke_time = t;
+        _keystroke = 0;
+    }
+#endif
 }
 
 struct ScrollAnimation

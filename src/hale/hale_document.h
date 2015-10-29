@@ -38,55 +38,41 @@ struct DocumentDescriptor
     Vector<u16> path;
 };
 
-#define DOCUMENT_PARSER_DONE(document)    (document->parser_status == Document::ParserStatus_Done)
-#define DOCUMENT_PARSER_WORKING(document) (document->parser_status & Document::ParserStatus_Working)
-#define DOCUMENT_PARSER_PAUSED(document)  (document->parser_status & Document::ParserStatus_Paused)
+// Only temporary.
+struct App;
 
 struct Document
 {
     static const int MAX_INDENTATION_SIZE = 16;
-    static const int MAX_MS_PER_INCREMENTAL_PARSE = 5;
 
-    enum UndoEvent
-    {
-#if 0
-        UndoEvent_Insert = UndoStream::EventType_User,
-        UndoEvent_Remove,
-#endif
-    };
+    // Tempoary.
+    App *app;
+
+    DocumentArena *arena;
+    Vector<ch16> path;
+    IndentationMode indentation_mode;
+    memi indentation_size;
 
     struct Block
     {
         enum Flags
         {
             F_TextChanged = 0x01,
-            F_FormatsInvalidated = 0x02
+            F_FormatsChanged = 0x02
         };
 
         memi end;
         u32 flags;
-        // TODO: Make a better memory layout for these.
-        //       Make "Segment" that will actually span over several blocks.
-        ParserStack stack;
-        Tokens tokens;
-
-#if 0
-        // TODO: Use gap_buffer for tokens, as it's a structure similar to text.
-        Parser::Tokens tokens;
-        // TODO: We probably won't have to store whole stack per line.
-        // The tokens will be in a tree structure, so we only need to know the token.
-        Parser::Stack stack;
-
-        // Formats are kept here in case there are multiple sessions for the document.
-        QList<QTextLayout::FormatRange> formats;
-#endif
+        Memory<ParserStackItem> stack_end;
+        Memory<ParserStackItem> stack_begin;
+        Memory<Token> tokens;
     };
 
-    DocumentArena *arena;
-    Vector<ch16> path;
-    IndentationMode indentation_mode;
-    memi indentation_size;
     Vector<Block> blocks;
+
+    //
+    // Views
+    //
 
     DocumentView views[16];
     memi views_count;
@@ -95,47 +81,35 @@ struct Document
     // Parser
     //
 
-    enum ParserStatus
-    {
-        ParserStatus_Done = 0x0,
-        ParserStatus_Working = 0x02,    // The parser is parsing (but can be paused).
-        ParserStatus_Paused = 0x04,     // Happens when the document is not active.
-    };
-
-    u32 parser_status;
-    memi parser_head;
+    memi _parser_head;
     ParserState parser_state;
-    ParserStack parser_stack;
+    Memory<ParserStackItem> parser_work_stack;
+    // Memory<ParserStackItem> parser_root_stack;
     DocumentParser parser;
 
+    //
+    // Buffer
+    //
+
     FixedGapArena buffer;
+
+    //
+    // Undo
+    //
+
+    enum UndoEvent
+    {
+#if 0
+        UndoEvent_Insert = UndoStream::EventType_User,
+        UndoEvent_Remove,
+#endif
+    };
     // UndoStream *undo;
 };
-
-//template<typename BufferT, typename UndoT>
-//struct DocumentT
-//{
-//    Document common;
-//    BufferT buffer;
-//    UndoT *undo;
-
-//    operator Document*() {
-//        return &common;
-//    }
-//};
-
-//typedef DocumentT<GapBuffer, UndoStream> DocumentGap;
-//typedef DocumentT<FixedGapArena, UndoStream> DocumentFGA;
-
 
 //
 // Arena
 //
-
-//union Document {
-//    DocumentGap document_gap;
-//    DocumentFGA document_fga;
-//};
 
 struct DocumentArena
 {
@@ -188,6 +162,9 @@ struct DocumentEdit
     memi offset_begin;
     /// Offset where the change ended.
     memi offset_end;
+
+    /// Length of the text changed.
+    memi length;
 
     /// Undo head.
     memi undo_head;
@@ -323,7 +300,14 @@ void document_release(Document *document);
 
 void document_set(DocumentEdit *edit, ch *text, memi length);
 void document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi text_length);
-void document_insert(DocumentEdit *edit, DocumentPosition *begin, DocumentPosition *end, ch *text, memi text_length);
+
+// TODO: Inserts text at multiple positions.
+//       Also supersedes the default single-position insert.
+void document_insert(DocumentEdit *edit,
+                     DocumentPosition *begin,
+                     DocumentPosition *end,
+                     ch *text,
+                     memi text_length);
 #if 0 // HALE_STU
 inline void
 document_insert(DocumentEdit *edit, DocumentPosition position, const char *text) {
@@ -340,7 +324,8 @@ document_append(DocumentEdit *edit, ch *text, memi text_length) {
     document_insert(edit, position, text, text_length);
 }
 
-void document_abner(DocumentEdit *edit, DocumentPosition position, memi length);
+// void document_abner(DocumentEdit *edit, DocumentPosition position, memi length);
+void document_abner(DocumentEdit *edit, DocumentPosition begin, DocumentPosition end);
 
 Memory<Token> *document_tokens(Document *document, memi block_index);
 void document_text(Document *document, memi offset, memi length, ch *buffer, memi buffer_length);
@@ -359,11 +344,21 @@ void document_commit(DocumentEdit *edit);
 // Parser
 //
 
-void document_parse_set(Document *document, DocumentParser *parser);
-void document_parse_set_head(Document *document, memi head);
-memi document_parse_immediate(Document *document, memi end);
-memi document_parse_partial(Document *document);
+void document_parser_set(Document *document, DocumentParser *parser);
+b32  document_parser_set_head(Document *document, memi head);
+memi document_parse(Document *document, r64 max_time);
 
+inline b32
+document_parser_is_working(Document *document) {
+    return document->parser.parse &&
+           document->_parser_head < vector_count(document->blocks);
+}
+
+//
+// External notifications.
+//
+
+void notify_document_needs_parsing(Document *document);
 } // namespace hale
 
 #endif // HALE_DOCUMENT_H

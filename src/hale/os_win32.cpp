@@ -217,18 +217,22 @@ HALE_PLATFORM_GET_FILE_SIZE_32(win32_get_file_size_32)
 
 HALE_PLATFORM_DEBUG_PRINT_N_16(win32_debug_print_N_16)
 {
-    hale_not_tested;
+    // TODO: We can do all this with just a static buffer and streaming.
 
-    Memory<ch16> s;
-    s.allocate(length + 1);
+    Memory<ch16> s = {};
+    s.push(length + 1, 0);
     memory_copy(s.e, string, length);
     s.e[length] = 0;
 
     OutputDebugStringW((LPCWSTR)s.e);
+
+    s.deallocate();
 }
 
 HALE_PLATFORM_DEBUG_PRINT_N_8(win32_debug_print_N_8)
 {
+    // TODO: We can do all this with just a static buffer and streaming.
+
     hale_not_tested;
 
     Memory<ch8> s;

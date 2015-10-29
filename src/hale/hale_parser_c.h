@@ -7,9 +7,9 @@
 
 namespace hale {
 
-struct CParser : public DocumentParser
+struct ParserC : public DocumentParser
 {
-    CParser();
+    ParserC();
 };
 
 }

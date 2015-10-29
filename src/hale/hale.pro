@@ -46,7 +46,11 @@ win32 {
 
 
 SOURCES += \
-    stu.cpp
+    stu.cpp \
+    hale_itoa.cpp \
+    test_parser_c.cpp \
+    test.cpp \
+    hale_document_parser.cpp
 
 OTHER_FILES += \
     Notes.txt \
@@ -77,7 +81,6 @@ OTHER_FILES += \
     jsmn.h \
     hale_document_parser.h \
     hale_parser_c.h \
-    hale_atoi.h \
     os_win32.h \
     os_win32_dx.h \
     os_win32_gdi.h \
@@ -86,7 +89,6 @@ OTHER_FILES += \
     hale_config.h \
     hale_document.cpp \
     hale_gap_buffer.cpp \
-    hale_document_parse.cpp \
     hale_string.cpp \
     hale.cpp \
     hale_test.cpp \
@@ -99,7 +101,6 @@ OTHER_FILES += \
     hale_document_view.cpp \
     jsmn.cpp \
     hale_parser_c.cpp \
-    hale_atoi.cpp \
     hale_os_ui.cpp \
     os_win32.cpp \
     os_win32_dx.cpp \
@@ -143,3 +144,8 @@ OTHER_FILES += \
 
 #INCLUDEPATH += $$PWD/../Lua
 #DEPENDPATH += $$PWD/../Lua
+
+HEADERS += \
+    hale_itoa.h \
+    hale_ftoa.h \
+    test.h

@@ -75,6 +75,35 @@ document_insert(DocumentEdit *edit, ch16 *text, memi text_length)
 }
 
 //
+// Remove
+//
+
+void
+document_remove(DocumentEdit *edit, RemoveCommand remove)
+{
+    hale_assert_input(edit->view);
+    hale_assert_input(edit->document);
+
+    // TODO: Cycle through the carets or just make a specialized API within the document?
+
+    DocumentCursor *cursor = &edit->view->cursors[0];
+    DocumentPosition position;
+    r32 anchor;
+    switch (remove)
+    {
+    case Remove_CharacterBackward: {
+        hale_assert(cursor->range.first == cursor->range.second);
+        position = cursor->range.first;
+        anchor = cursor->anchor;
+        cursor_previous_character(edit->view, &position, &anchor);
+        document_abner(edit, position, cursor->range.first);
+    } break;
+    }
+
+    cursor->range.first = cursor->range.second = edit->pos_begin;
+}
+
+//
 //
 //
 
@@ -82,6 +111,12 @@ void
 document_view_on_insert(DocumentView *view, DocumentEdit *edit)
 {
     document_layout_on_insert(view->layout, edit);
+}
+
+void
+document_view_on_remove(DocumentView *view, DocumentEdit *edit)
+{
+    document_layout_on_remove(view->layout, edit);
 }
 
 void
@@ -103,11 +138,12 @@ document_view_scroll_to(DocumentView *view, r32 x, r32 y)
 void
 document_view_move_cursor(DocumentView *view, MoveCursor move_cursor_function)
 {
-    DocumentPosition position = view->cursors[0].range.first;
+    auto cursor = &view->cursors[0];
+    DocumentPosition position = cursor->range.first;
     r32 anchor = 0;
     move_cursor_function(view, &position, &anchor);
-    view->cursors[0].range.first = position;
-    view->cursors[0].anchor = anchor;
+    cursor->range.first = cursor->range.second = position;
+    cursor->anchor = anchor;
 }
 
 HALE_MOVE_CURSOR(cursor_next_character)

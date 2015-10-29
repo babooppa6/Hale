@@ -7,24 +7,6 @@
 
 namespace hale {
 
-//struct DocumentTextWriter : public TextWriter {
-//    DocumentEdit *edit;
-//    DocumentTextWriter(DocumentEdit *edit);
-//};
-
-//HALE_PLATFORM_TEXT_WRITER(_document_write)
-//{
-//    DocumentTextWriter *document_writer = (DocumentTextWriter*)(writer);
-//    document_append(document_writer->edit, text, length);
-//    return 1;
-//}
-
-//DocumentTextWriter::DocumentTextWriter(DocumentEdit *edit) :
-//    edit(edit)
-//{
-//    write = _document_write;
-//}
-
 err
 document_load(Document *document, const ch16 *path)
 {
