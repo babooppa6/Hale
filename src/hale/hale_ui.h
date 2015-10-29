@@ -39,6 +39,7 @@ struct GutterOptions : CommonOptions
 struct AppOptions : public CommonOptions
 {
     ch *text_font_family;
+    r32 text_font_size;
 };
 
 //

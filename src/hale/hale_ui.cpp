@@ -19,7 +19,8 @@ hale_global b32 _keystroke = 0;
 b32
 app_init(App *app)
 {
-    app->options.text_font_family = (ch16*)L"Nitti";
+    app->options.text_font_family = (ch16*)L"Consolas";
+    app->options.text_font_size = 17.0f;
     return 1;
 }
 
@@ -138,12 +139,12 @@ window_init(Window *window)
 
     DocumentLayout *layout = view->layout;
     layout->base_format   = text_format(&window->text_processor,
-                                        18.0f,
+                                        app->options.text_font_size,
                                         TextFormat::Weight::Light,
                                         TextFormat::Style::Normal,
                                         {0xff, 0xff, 0xFF, 0xff});  // {0xe8, 0xf0, 0xFF, 0x80}
 
-    r32 todo_line_height = 18.0f;
+    r32 todo_line_height = app->options.text_font_size;
 
     layout->options = {};
     layout->options.padding.top = todo_line_height * 2;
