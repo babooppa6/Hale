@@ -43,10 +43,10 @@ struct performance_timer
         u64 ticks_delta = __rdtsc() - cycles;
         r64 time_d  = time_delta();
 
-        Print() << name << hale_ch("\n")
-                << hale_ch("    time ") << (time_d * 1e3) << hale_ch("ms") << hale_ch("\n")
-                << hale_ch("    ticks") << ((r64)ticks_delta) << hale_ch("cy") << hale_ch("\n")
-                << hale_ch("    ratio") << ((r64)ticks_delta / time_d)/(1e6) << hale_ch("cy/ms") << hale_ch("\n");
+//        Print() << name << hale_ch("\n")
+//                << hale_ch("    time ") << (time_d * 1e3) << hale_ch("ms") << hale_ch("\n")
+//                << hale_ch("    ticks") << ((r64)ticks_delta) << hale_ch("cy") << hale_ch("\n")
+//                << hale_ch("    ratio") << ((r64)ticks_delta / time_d)/(1e6) << hale_ch("cy/ms") << hale_ch("\n");
 
         cycles = __rdtsc() - ticks_delta;
         time  = platform.read_time_counter() - time_d;

@@ -68,7 +68,7 @@ token_id(TokenId id)
 {
     for (memi i = 0; i != token_table.count; ++i)
     {
-        if (token_table.e[i].id == id) {
+        if (token_table.ptr[i].id == id) {
             return i;
         }
     }
@@ -94,7 +94,7 @@ flush(ParserState *S, memi begin)
 	memi text_begin;
 	memi text_end = begin;
 	if (S->tokens->count != 0){
-		text_begin = S->tokens->e[S->tokens->count - 1].end;
+        text_begin = S->tokens->ptr[S->tokens->count - 1].end;
 	}
 	else {
 		text_begin = 0;
@@ -104,7 +104,7 @@ flush(ParserState *S, memi begin)
 
 	if (text_begin != text_end)
 	{
-		token = S->tokens->push(1, 16);
+        token = S->tokens->push(1, 16);
 		token->id = top(S)->token_id;
         hale_assert_debug((text_begin & ~(memi)0xFFFF) == 0);
         hale_assert_debug((text_end & ~(memi)0xFFFF) == 0);
@@ -142,7 +142,7 @@ inline ParserStackItem *
 top(ParserState *S)
 {
     hale_assert_debug(S->stack->count != 0);
-    return &S->stack->e[S->stack->count - 1];
+    return &S->stack->ptr[S->stack->count - 1];
 }
 
 //
@@ -313,6 +313,8 @@ HALE_DOCUMENT_PARSER_PARSE(_parse)
 
 ParserC::ParserC()
 {
+    memi c = __stack__.capacity;
+
     init     = _init;
     parse    = _parse;
 }

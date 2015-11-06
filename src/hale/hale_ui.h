@@ -6,6 +6,7 @@
 #include "hale_document.h"
 
 #include "hale_os_ui.h"
+#include "hale_configuration.h"
 #endif
 
 namespace hale {
@@ -56,7 +57,7 @@ struct TextProcessor
 struct DocumentLayout
 {
     TextProcessor *text_processor;
-    DocumentView *session;
+    DocumentView *view;
     Rect<r32> document_rect;
     Rect<r32> gutter_rect;
     memi scroll_begin;
@@ -71,11 +72,11 @@ struct DocumentLayout
 };
 
 DocumentLayout *document_layout(TextProcessor *text_processor, DocumentView *session);
-void document_layout_scroll_by(DocumentLayout *layout, r32 dx, r32 dy);
+void document_layout_scroll_by(HALE_STACK, DocumentLayout *layout, r32 dx, r32 dy);
 void document_layout_set_viewport(DocumentLayout *layout, Rect<r32> viewport);
-void document_layout_layout(DocumentLayout *layout);
-void document_layout_draw(Window *window, DocumentLayout *layout);
-void document_layout_draw_cursor(Window *window, DocumentLayout *layout, DocumentPosition position);
+void document_layout_layout(HALE_STACK, DocumentLayout *layout);
+void document_layout_draw(HALE_STACK, Window *window, DocumentLayout *layout);
+void document_layout_draw_cursor(HALE_STACK, Window *window, DocumentLayout *layout, DocumentPosition position);
 
 void document_layout_on_insert(DocumentLayout *layout, DocumentEdit *edit);
 void document_layout_on_remove(DocumentLayout *layout, DocumentEdit *edit);
@@ -87,7 +88,8 @@ enum struct DocumentLayoutGetCursor
     PreviousCharacter
 };
 
-void document_layout_get_cursor(DocumentLayout *layout,
+void document_layout_get_cursor(HALE_STACK,
+                                DocumentLayout *layout,
                                 DocumentLayoutGetCursor which,
                                 DocumentPosition *position,
                                 r32 *anchor);
@@ -114,8 +116,8 @@ struct Panel
     DocumentView *document_view;
 };
 
-void panel_layout(Panel *panel);
-void panel_render(Panel *panel);
+void panel_layout(HALE_STACK, Panel *panel);
+void panel_render(HALE_STACK, Panel *panel);
 
 
 //
@@ -123,7 +125,7 @@ void panel_render(Panel *panel);
 //
 
 struct Animation;
-#define HALE_ANIMATE(name) void name(r32 t, Animation *a)
+#define HALE_ANIMATE(name) void name(PagedMemory *stack, r32 t, Animation *a)
 typedef HALE_ANIMATE(Animate);
 
 struct Animation
@@ -156,11 +158,11 @@ struct Window
     Animations animations;
 };
 
-b32 window_init(Window *window);
-void window_layout(Window *window);
-void window_render(Window *window);
+b32 window_init(HALE_STACK, Window *window);
+void window_layout(HALE_STACK, Window *window);
+void window_render(HALE_STACK, Window *window);
 void window_invalidate(Window *window);
-void window_scroll_by(Window *window, r32 x, r32 y, r32 delta_x, r32 delta_y);
+void window_scroll_by(HALE_STACK, Window *window, r32 x, r32 y, r32 delta_x, r32 delta_y);
 
 Animation *window_get_animation(Window *window, void *key);
 Animation *window_add_animation(Window *window, void *key, Animation *animation);
@@ -169,8 +171,17 @@ Animation *window_add_animation(Window *window, void *key, Animation *animation)
 // App
 //
 
+// Experimental.
+template<memi Type>
+struct ScopeObject
+{
+    enum { Id = Type } id;
+};
+
 struct App
 {
+    ScopeObject<1> type;
+
     s32    argc;
     ch16 **argv;
 
@@ -182,40 +193,26 @@ struct App
     Window windows[16];
     memi windows_count;
 
+    ScopeArena configuration;
     AppOptions options;
 };
 
-struct KeyEvent
-{
-    enum Modifiers
-    {
-        Shift,
-        Alt,
-        AltGr,
-        Ctrl,
-        WinLeft,
-        WinRight
-    };
+// Experimental.
+#if 0
+#define HALE_SCOPE_TYPE(Type)\
+    inline ch8 *scope_type(Type &type) { return #Type; }\
+    inline ch8 *scope_type(Type *type) { return #Type; }\
 
-    enum Type
-    {
-        KeyDown = 0,
-        KeyUp = 1,
-        Text = 2
-    };
+HALE_SCOPE_TYPE(App)
+#endif
 
-    Type type;
-    ch32 codepoint;
-    u8   modifiers;
-    u32  vkey;
-};
+// extern App g_app;
 
-extern App g_app;
-
-b32 app_init(App *app);
+b32 app_init(PagedMemory *stack, App *app);
+void app_configure(ScopeArena &C);
 void app_suspend_parsing(App *app);
 void app_resume_parsing(App *app);
-void app_on_key_event(App *app, Window *window, KeyEvent e);
+void app_on_key_event(PagedMemory *stack, App *app, Window *window, KeyEvent e);
 b32  app_on_parse_event(App *app);
 
 struct Status
@@ -231,9 +228,10 @@ struct Status
 TextFormat *
 text_format(TextProcessor *text_processor,
             r32 size,
-            TextFormat::Weight weight,
-            TextFormat::Style style,
-            Color32 color);
+            TextWeight weight,
+            TextStyle style,
+            Color32 color,
+            TextAlignment alignment = TextAlignment::Leading);
 
 b32
 text_layout(TextProcessor *text_processor,
@@ -283,6 +281,10 @@ void
 draw_rectangle(Window *window,
                Rect<r32> rect,
                Color32 color);
+
+//
+//
+//
 
 } // namespace hale
 

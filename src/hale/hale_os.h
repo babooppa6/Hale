@@ -36,6 +36,13 @@ typedef HALE_PLATFORM_GET_FILE_SIZE_32(PlatformGetFileSize32);
 //typedef HALE_PLATFORM_READ_TEXT(PlatformReadTextFile);
 
 //
+// Assert
+//
+
+#define HALE_PLATFORM_SHOW_ERROR(name) void name(const ch *message, const ch *description, const ch *function, const ch *file, s32 line)
+typedef HALE_PLATFORM_SHOW_ERROR(PlatformShowError);
+
+//
 // Memory
 //
 
@@ -79,6 +86,8 @@ struct Platform
     memi page_size;
     memi page_shift;
     memi page_mask;
+
+    PlatformShowError show_error;
 
     PlatformAllocatePagedMemory *allocate_paged_memory;
     PlatformDeallocatePagedMemory *deallocate_paged_memory;

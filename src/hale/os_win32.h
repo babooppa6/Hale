@@ -10,6 +10,8 @@
 #define HALE_PLATFORM_INVALID_SIZE_64 ((u64)-1)
 #define HALE_PLATFORM_INVALID_SIZE_32 ((u32)-1)
 
+#define HALE_STACK PagedMemory *stack
+
 static_assert(sizeof(FLOAT) == sizeof(hale::r32), "Incompatible FLOAT size.");
 
 namespace hale {

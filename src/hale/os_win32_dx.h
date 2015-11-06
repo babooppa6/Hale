@@ -13,42 +13,48 @@ struct ID2D1SolidColorBrush;
 
 namespace hale {
 
+enum struct TextAlignment
+{
+    Leading     = DWRITE_TEXT_ALIGNMENT_LEADING,
+    Trailing    = DWRITE_TEXT_ALIGNMENT_TRAILING,
+    Center      = DWRITE_TEXT_ALIGNMENT_CENTER
+};
+
+enum struct TextWeight
+{
+    Thin = 100,
+    ExtraLight = 200,
+    UltraLight = 200,
+    Light = 300,
+    Normal = 400,
+    Medium = 500,
+    SemiBold = 600,
+    Bold = 700,
+    ExtraBold = 800,
+    Black = 900,
+    ExtraBlack = 950
+};
+
+enum struct TextStyle
+{
+    Normal,
+    Italic
+};
+
 struct TextFormat
 {
     // TODO: Predefined font sizes?
     // HTML uses 6-7 basic sizes. I might only go with 4?
     r32 size;
-
-    // TODO: Bitfields for these? I rarely use more than 4 font weights.
-    enum struct Weight
-    {
-        Thin = 100,
-        ExtraLight = 200,
-        UltraLight = 200,
-        Light = 300,
-        Normal = 400,
-        Medium = 500,
-        SemiBold = 600,
-        Bold = 700,
-        ExtraBold = 800,
-        Black = 900,
-        ExtraBlack = 950
-    };
-    Weight weight;
-
-    // TODO: Bitfields.
-    enum struct Style
-    {
-        Normal,
-        Italic
-    };
-    Style style;
-
+    // TODO: Bitfields for these? I rarely use more than 4 font weights or more than 2 styles.
+    TextWeight weight;
+    TextStyle style;
     // TODO: Already packed as u32. But a palette would be much better and much more consistent. But then there's problem with color animations. (is there?)
     Color32 color;
+    // This is ignored by DocumentLayout.
+    TextAlignment alignment;
 
     IDWriteTextFormat *_format;
-    ID2D1SolidColorBrush *_brush;
 };
 
 // TODO: Do I even need text format? Ranges might be designed just in a way of "start bold" / "start weight_normal", "start size Large", "start size Small".
@@ -84,19 +90,21 @@ struct __DocumentLayout
 
     // Using `valid` signalling instead of `invalid` as we then can simply
     // initialize the whole structure to 0 and it'll all work.
-    enum BlockFlags
-    {
-        TextValid = 0x01,
-        FormatValid = 0x02
-    };
+//    enum BlockFlags
+//    {
+//        TextValid = 0x01,
+//        FormatValid = 0x02
+//    };
 
     struct Block
     {
-        u32 flags;
+//        u32 flags;
         r32 y;
         TextLayout layout;
     };
     Vector<Block> blocks;
+
+    // TODO: This should be stored
     b32 layout_invalid;
 };
 

@@ -3,6 +3,7 @@
 #include "hale_types.h"
 #include "hale_gap_buffer.h"
 #include "hale_document.h"
+#include "hale_undo.h"
 #endif
 
 
@@ -307,123 +308,10 @@ _check_edit(DocumentEdit *edit)
     hale_assert(edit->view || edit->undo || edit->internal);
 }
 
-hale_internal void
-_write_undo(DocumentEdit *edit, s32 type, memi offset, memi length)
-{
-#if 0
-    if (edit->undo) {
-        return;
-    }
-
-    QString text;
-
-    edit->document->undo->write(type, [&] (QDataStream &s) {
-//        Vector<ch> text;
-//        vector_resize(&text, length);
-//        document_text(edit->document, offset, length, vector_ptr(&text), length);
-
-        s << offset;
-        s << length;
-
-        text.resize((int)length);
-        document_text(edit->document, offset, length, (ch*)text.data(), length);
-
-        s << text;
-    });
-#endif
-}
-
-#if 0
-hale_internal void
-read_undo(DocumentEdit *edit, QDataStream &s, s32 event, b32 redo)
-{
-    int offset;
-    int length;
-    QString text;
-
-    s >> offset;
-    s >> length;
-
-    auto position(offset_to_position(edit->document, offset));
-
-    if (redo) {
-        switch (event) {
-        case Document::UndoEvent_Insert:
-            event = Document::UndoEvent_Remove;
-            break;
-        case Document::UndoEvent_Remove:
-            event = Document::UndoEvent_Insert;
-            break;
-        }
-    }
-
-    switch (event)
-    {
-    case Document::UndoEvent_Insert:
-        document_abner(edit, position, length);
-        break;
-    case Document::UndoEvent_Remove:
-        s >> text;
-        document_insert(edit, position, (ch*)text.data(), text.length());
-        break;
-    }
-}
-#endif
-
-hale_internal memi
-convert_and_insert(Document *document, memi offset, ch *text, memi text_length, Vector<memi> *offsets)
-{
-    ch *it = text;
-    ch *it_text = it;
-    ch *end = text + text_length;
-
-    memi len;
-    memi off = offset;
-    for (;;)
-    {
-        auto le = string_find_next_line_ending(&it, end);
-        len = (it-it_text) - le.length;
-        _buffer_insert(&document->buffer,
-                       off,
-                       it_text,
-                       len);
-
-        off += len;
-
-        if (le.type != LineEnding_Unknown) {
-            // Insert LF new line.
-            _buffer_insert(&document->buffer,
-                           off,
-                           (ch*)L"\n", 1);
-            off += 1;
-
-            vector_push(offsets, off);
-        } else {
-            break;
-        }
-        it_text = it;
-    }
-
-    return off - offset;
-}
 
 //
 // Blocks
 //
-
-//Document::Block *
-//document_get_block_info(Document *document, memi block)
-//{
-//    Document::Block *block = document->blocks_info[block];
-//    if (block == NULL)
-//    {
-//        // TODO: Rework block_info to a more efficient structure.
-//        block = new Document::Block;
-//        block->flags = 0;
-//        document->block_info[block_index] = block;
-//    }
-//    return block;
-//}
 
 memi
 document_block_at(Document *document, memi offset, memi search_begin, memi search_end)
@@ -476,6 +364,56 @@ document_block_at(Document *document, memi offset, memi search_begin, memi searc
 }
 
 //
+// Insert
+//
+
+hale_internal memi
+convert_and_insert(DocumentEdit *edit, ch *text, memi text_length, Vector<memi> *offsets)
+{
+    Document *document = edit->document;
+    memi offset = edit->offset_begin;
+
+    ch *it = text;
+    ch *it_text = it;
+    ch *end = text + text_length;
+
+    memi len;
+    memi off = offset;
+    for (;;)
+    {
+        auto le = string_find_next_line_ending(&it, end);
+        len = (it-it_text) - le.length;
+        _buffer_insert(&document->buffer,
+                       off,
+                       it_text,
+                       len);
+        if (!edit->undo && len) {
+            undo_write(&document->undo, it_text, len * sizeof(ch));
+        }
+        off += len;
+
+        if (le.type != LineEnding_Unknown) {
+            // Insert LF new line.
+            _buffer_insert(&document->buffer,
+                           off,
+                           (ch*)L"\n", 1);
+
+            if (!edit->undo) {
+                undo_write(&document->undo, L"\n", sizeof(ch));
+            }
+            off += 1;
+
+            vector_push(offsets, off);
+        } else {
+            break;
+        }
+        it_text = it;
+    }
+
+    return off - offset;
+}
+
+//
 //
 //
 
@@ -483,6 +421,12 @@ void
 document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi text_length)
 {
     _check_edit(edit);
+
+//#ifdef _DEBUG
+//    for (memi i = 0; i < text_length; i++) {
+//        hale_assert(text[i] != '\r');
+//    }
+//#endif
 
     auto document = edit->document;
     memi old_document_end = _buffer_length(document->buffer);
@@ -494,7 +438,20 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
 
     Vector<memi> offsets;
     vector_init(&offsets);
-    text_length = convert_and_insert(document, edit->offset_begin, text, text_length, &offsets);
+    if (!edit->undo)
+    {
+        UndoWriter writer(&edit->document->undo, Document::UndoEvent_Insert);
+        undo_write(writer.undo, &edit->offset_begin, sizeof(memi));
+        memi length_index = writer.undo->data.count;
+        undo_write(writer.undo, &edit->length, sizeof(memi));
+
+        text_length = convert_and_insert(edit, text, text_length, &offsets);
+        *((memi*)(writer.undo->data.ptr + length_index)) = text_length;
+    }
+    else
+    {
+        text_length = convert_and_insert(edit, text, text_length, &offsets);
+    }
 
     edit->offset_end = edit->offset_begin + text_length;
     edit->length = text_length;
@@ -536,7 +493,6 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
     if (edit->blocks_changed_count > 0)
     {
         Document::Block block = {};
-        block.flags = Document::Block::F_TextChanged;
 
         // We're inserting this *before* the position.block.
         vector_insert(&document->blocks,
@@ -556,13 +512,15 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
         document->blocks[i].end += text_length;
     }
 
-    document->blocks[edit->block_changed].flags = Document::Block::F_TextChanged;
+    document->blocks[edit->block_changed].flags = 0;
 
     edit->pos_begin = position;
     edit->pos_end = position_plus_offset(document, edit->pos_begin, text_length);
 
     // _write_undo(edit, Document::UndoEvent_Insert, edit->offset_begin, text_length);
 
+    // Mark all views' layout to be invalid.
+    document->view_flags = HALE_DOCUMENT_VIEW_LAYOUT_INVALID;
     // Invalidate block
     // Call this before we go for document_parse, so that the view's
     // is actually updated.
@@ -570,7 +528,7 @@ document_insert(DocumentEdit *edit, DocumentPosition position, ch *text, memi te
 
     // Move the parser head
     if (document_parser_set_head(document, edit->pos_begin.block)) {
-        // TODO(cohen): If the time distance between caret types is small,
+        // TODO(cohen): If the time distance between inserts is small,
         //              do not parse immediately.
         document_parse(document, 0.01f);
     }
@@ -601,7 +559,14 @@ document_abner(DocumentEdit *edit, DocumentPosition begin, DocumentPosition end)
     edit->block_changed = begin.block;
     edit->blocks_changed_count = edit->pos_end.block - edit->pos_begin.block;
 
-    // _write_undo(edit, UndoE)
+    if (!edit->undo)
+    {
+        UndoWriter writer(&edit->document->undo, Document::UndoEvent_Remove);
+        undo_write(writer.undo, &edit->offset_begin, sizeof(memi));
+        undo_write(writer.undo, &edit->length, sizeof(memi));
+        void *text = undo_write(writer.undo, edit->length * sizeof(ch));
+        document_text(document, edit->offset_begin, edit->length, (ch*)text, edit->length);
+    }
 
     _buffer_remove(&document->buffer, edit->offset_begin, edit->length);
     if (edit->blocks_changed_count) {
@@ -621,7 +586,7 @@ document_abner(DocumentEdit *edit, DocumentPosition begin, DocumentPosition end)
         document->blocks[i].end -= edit->length;
     }
 
-    document->blocks[edit->block_changed].flags = Document::Block::F_TextChanged;
+    document->blocks[edit->block_changed].flags = 0;
 
     // Move the parser head
     if (document_parser_set_head(document, edit->pos_begin.block)) {
@@ -654,11 +619,44 @@ document_tokens(Document *document, memi block_index)
 // Undo
 //
 
+// _read_undo depends on this
+static_assert(Document::UndoEvent_Insert == 0, "UndoEvent_Insert is supposed to be 0.");
+static_assert(Document::UndoEvent_Remove == 1, "UndoEvent_Remove is supposed to be 1.");
+
+void
+_read_undo(DocumentEdit *edit, Undo *undo, s32 type, bool redo)
+{
+    memi offset, length;
+
+    undo_read(undo, &offset, sizeof(memi));
+    undo_read(undo, &length, sizeof(memi));
+
+    if (redo) {
+       type = !type;
+    }
+
+    switch (type)
+    {
+    case Document::UndoEvent_Insert:
+        document_abner(edit, offset, length);
+        break;
+    case Document::UndoEvent_Remove:
+        document_insert(edit, offset, (ch*)undo_read(undo, length), length);
+        break;
+    }
+}
+
 void
 document_undo(Document *document)
 {
-    hale_unused(document);
-    hale_not_implemented;
+    DocumentEdit edit;
+    document_edit(&edit, document, 0);
+    edit.undo = true;
+
+    s32 type;
+    while (undo_next_event(&document->undo, &type)) {
+        _read_undo(&edit, &document->undo, type, 0);
+    }
 }
 
 void

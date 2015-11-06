@@ -83,6 +83,10 @@ struct ScopedCOM
 // Some Microsoft <3
 //
 
+// TODO: Implement this as `memi _color_register(Color32 color)`, `ID2D1SolidColorBrush _color_brush(memi index)`
+//       The `index` will be kept internally. If the CreateSolidColorBrush/__safe_release is speedy enough, we might
+//       even do that before the thing is drawn. (but I don't like that idea)
+
 namespace ms_love
 {
 
@@ -110,6 +114,7 @@ _create_palette(__TextProcessor *p, ID2D1RenderTarget *rt)
     _make_color(rt, &p->_d_brushes[0], {0x2c, 0x91, 0xad, 0xFF}); // Blue
     _make_color(rt, &p->_d_brushes[1], {0xFF, 0xd8, 0x4b, 0xFF}); // Yellow
     _make_color(rt, &p->_d_brushes[2], {0x0f, 0x87, 0x51, 0xFF}); // Green
+    _make_color(rt, &p->_d_brushes[3], {0xFF, 0xFF, 0xFF, 0xFF}); // Base
 }
 
 hale_internal void
@@ -130,7 +135,7 @@ _release_palette(__TextProcessor *p)
 // ----------------------------------------------------------------
 
 hale_internal b32
-__app_init(App *app)
+__app_init(PagedMemory *stack, App *app)
 {
     HRESULT hr;
 
@@ -178,7 +183,7 @@ __app_init(App *app)
     //
     //
 
-    return app_init(app);
+    return app_init(stack, app);
 }
 
 hale_internal void
@@ -285,14 +290,14 @@ __window_release_resources(Window *window)
     for (memi i = 0; i != window->impl.text_formats_count; ++i)
     {
         __safe_release(&window->impl.text_formats[i]._format);
-        __safe_release(&window->impl.text_formats[i]._brush);
+        // __safe_release(&window->impl.text_formats[i]._brush);
     }
     ms_love::_release_palette(&window->text_processor.impl);
     __safe_release(&window->impl.d_render_target);
 }
 
 hale_internal b32
-__os_window_init(Window *window)
+__os_window_init(PagedMemory *, Window *window)
 {
     window->text_processor.impl.window = window;
     __window_create_resources(window);
@@ -306,7 +311,7 @@ __os_window_release(Window *window)
 }
 
 hale_internal void
-__os_window_resize(Window *window, RECT *rc_client)
+__os_window_resize(HALE_STACK, Window *window, RECT *rc_client)
 {
     if (window->impl.d_render_target)
     {
@@ -317,13 +322,13 @@ __os_window_resize(Window *window, RECT *rc_client)
         window->impl.d_render_target->Resize(s);
         window->client_rect.max_x = rc_client->right;
         window->client_rect.max_y = rc_client->bottom;
-        window_layout(window);
-        __os_window_paint(window);
+        window_layout(stack, window);
+        __os_window_paint(stack, window);
     }
 }
 
 hale_internal void
-__os_window_paint(Window *window)
+__os_window_paint(HALE_STACK, Window *window)
 {
     HRESULT hr;
 
@@ -332,7 +337,7 @@ __os_window_paint(Window *window)
     hr = __window_create_resources(window);
 
     if (FAILED(hr)) {
-        hale_error(__window_create_resources);
+        hale_error("__window_create_resources");
     }
 
 //    RECT _r;
@@ -343,7 +348,7 @@ __os_window_paint(Window *window)
     rt->BeginDraw();
     rt->SetTransform(D2D1::IdentityMatrix());
     rt->Clear(D2D1::ColorF(D2D1::ColorF::White));
-    window_render(window);
+    window_render(stack, window);
     hr = rt->EndDraw();
 
     // NOTE(cohen): Has to be called if anything above fails!
@@ -364,9 +369,10 @@ __os_window_paint(Window *window)
 TextFormat *
 text_format(TextProcessor *text_processor,
             r32 size,
-            TextFormat::Weight weight,
-            TextFormat::Style style,
-            Color32 color)
+            TextWeight weight,
+            TextStyle style,
+            Color32 color,
+            TextAlignment alignment /*= TextAlignment::Leading*/)
 {
     Window *window = text_processor->impl.window;
     __Window *impl_window = &window->impl;
@@ -406,6 +412,7 @@ text_format(TextProcessor *text_processor,
         format->style = style;
         format->size = size;
         format->color = color;
+        format->alignment = alignment;
     }
 
     // DWRITE_FONT_WEIGHT font_weight = (DWRITE_FONT_WEIGHT)format->weight;
@@ -413,36 +420,24 @@ text_format(TextProcessor *text_processor,
     DWRITE_FONT_STRETCH font_stretch = DWRITE_FONT_STRETCH_NORMAL;
     DWRITE_FONT_STYLE font_style = (DWRITE_FONT_STYLE)format->style;
 
-
-   HRESULT hr = window->app->impl.w_factory->CreateTextFormat(
-        (WCHAR*)window->app->options.text_font_family,
-        // System font collection.
-        NULL,
-        font_weight,
-        font_style,
-        font_stretch,
-        format->size,
-        L"en-us",
-        &format->_format
-        );
+    HRESULT hr = window->app->impl.w_factory->CreateTextFormat(
+                (WCHAR*)window->app->options.text_font_family,
+                // System font collection.
+                NULL,
+                font_weight,
+                font_style,
+                font_stretch,
+                format->size,
+                L"en-us",
+                &format->_format
+                );
 
     if (FAILED(hr)) {
         hale_error("CreateTextFormat");
         return 0;
     }
 
-    format->_brush = NULL;
-
-    hr = impl_window->d_render_target->CreateSolidColorBrush(
-        _dcolor(format->color),
-        &format->_brush
-        );
-
-    if (FAILED(hr)) {
-        hale_error("CreateSolidColorBrush");
-        __safe_release(&format->_format);
-        return 0;
-    }
+    format->_format->SetTextAlignment((DWRITE_TEXT_ALIGNMENT)alignment);
 
     impl_window->text_formats_count++;
 
@@ -542,7 +537,7 @@ _text_layout_update_formats(TextProcessor *text_processor,
     HRESULT hr;
     DWRITE_TEXT_RANGE r;
     IDWriteTextLayout *wl = layout->w_layout;
-    Token *token = &tokens->e[0];
+    Token *token = &tokens->ptr[0];
     for (memi i = 0; i != tokens->count; i++)
     {
         // TODO: Isn't there a better way to do this?
@@ -581,18 +576,18 @@ _text_layout_update_formats(TextProcessor *text_processor,
     }
 }
 
-void
-text_layout_clear_formats(Window *window,
-                          TextLayout *layout)
-{
-    DWRITE_TEXT_RANGE r;
-    r.startPosition = 0;
-    r.length = -1;
-    layout->w_layout->SetFontWeight((DWRITE_FONT_WEIGHT)layout->base->weight, r);
-    layout->w_layout->SetFontStyle((DWRITE_FONT_STYLE)layout->base->style, r);
-    layout->w_layout->SetFontSize(layout->base->size, r);
-    layout->w_layout->SetDrawingEffect(layout->base->_brush, r);
-}
+//void
+//text_layout_clear_formats(Window *window,
+//                          TextLayout *layout)
+//{
+//    DWRITE_TEXT_RANGE r;
+//    r.startPosition = 0;
+//    r.length = -1;
+//    layout->w_layout->SetFontWeight((DWRITE_FONT_WEIGHT)layout->base->weight, r);
+//    layout->w_layout->SetFontStyle((DWRITE_FONT_STYLE)layout->base->style, r);
+//    layout->w_layout->SetFontSize(layout->base->size, r);
+//    layout->w_layout->SetDrawingEffect(layout->base->_brush, r);
+//}
 
 // ----------------------------------------------------------------
 //
@@ -600,74 +595,94 @@ text_layout_clear_formats(Window *window,
 //
 // ----------------------------------------------------------------
 
+// TODO: Use a bitfield on the document itself. The number of views will be limited, but even if
+//       there's going to be 32 views, we only need 2 bits per view for the two flags:
+//       TextInvalid
+//       TokensInvalid
+//       So we can use 64-bit number to handle flags for 32 views.
+//       That way, we can cache only a few blocks per view, to have references to unicode data.
+//       Actually we would only need one fixed cache for blocks we're rendering.
+//       This, however, counts on having the cursor navigation to be done without the need for
+//       unicode data. Luckily we won't need to render the cursors that are not visible, and
+//       we will have to rework how vertical anchors work (with invalidation? or with using columns)
+//       !!! Anchoring wouldn't work without Unicode data, as we will need to know
+//           how the lines are wrapped.
+
 hale_internal __DocumentLayout::Block*
-_get_block(DocumentLayout *layout, memi block_index)
+_get_block(PagedMemory *stack, DocumentLayout *layout, memi block_index)
 {
     __DocumentLayout *impl = &layout->impl;
     if (vector_count(impl->blocks) == 0) {
         return NULL;
     }
 
-    DocumentView *session = layout->session;
-    Document *document = session->document;
+    DocumentView *view = layout->view;
+    Document *document = view->document;
 
-    Memory<ch16> text = {};
+    StackMemory<ch16> text(stack, 0);
     Memory<Token> *tokens = 0;
 
-    auto block = &impl->blocks[block_index];
+    auto layout_block = &impl->blocks[block_index];
+    auto document_block = &document->blocks[block_index];
+    u8 flags = document_read_block_view_flags(view, document_block->view_flags);
 
     // Text
 
-    if (((block->flags & __DocumentLayout::TextValid) == 0))
+    PrintSink() << __FUNCTION__ << block_index;
+
+    if ((flags & DocumentBlockFlags_TextValid) == 0)
     {
+        flags |= DocumentBlockFlags_TextValid;
+        flags &= ~DocumentBlockFlags_TokensValid;
+
         // TODO: Optimize this with TextBuffer.
         // TODO: If we would keep only a shorter cache of the blocks, we can optimize there.
 
         memi count = document_block_length_without_le(document, block_index);
-        memi begin = document_block_begin(document, block_index);
-        text.allocate(count);
-        text.count = count;
-        document_text(document, begin, count, text.e, count);
+        if (count) {
+            memi begin = document_block_begin(document, block_index);
+            text.push(count);
+            document_text(document, begin, count, text.ptr(), count);
+        }
 
-        block->flags |= __DocumentLayout::TextValid;
-        block->flags &= ~__DocumentLayout::FormatValid;
+        PrintSink() << "- Updating text";
     }
 
     // Formats
 
-    if ((block->flags & __DocumentLayout::FormatValid) == 0)
+    if ((flags & DocumentBlockFlags_TokensValid) == 0)
     {
-        block->flags |= __DocumentLayout::FormatValid;
+        flags |= DocumentBlockFlags_TokensValid;
         tokens = document_tokens(document, block_index);
+        PrintSink() << "- Updating tokens";
     }
 
     r32 max_width = layout->document_rect.max_x - layout->document_rect.min_x;
-    if (block->layout.w_layout == NULL ||
-            text.e ||
-            tokens ||
-            !equal(block->layout.w_layout->GetMaxWidth(), max_width, 0.1f)
-            )
+    if (layout_block->layout.w_layout == NULL ||
+        text.count ||
+        tokens ||
+        !equal(layout_block->layout.w_layout->GetMaxWidth(), max_width, 0.1f)
+        )
     {
-        if (block->layout.w_layout == NULL) {
-            hale_assert(text.e);
-        }
+        // NOTE: We're allowing for empty text (first line in empty document).
+//        if (layout_block->layout.w_layout == NULL) {
+//            hale_assert(text.count);
+//        }
         text_layout_update(layout->text_processor,
-                           &block->layout,
-                           text.e, text.count,
+                           &layout_block->layout,
+                           text.ptr(), text.count,
                            layout->base_format,
                            max_width);
         if (tokens) {
-            _text_layout_update_formats(layout->text_processor, &block->layout, tokens);
+            _text_layout_update_formats(layout->text_processor, &layout_block->layout, tokens);
         }
     }
 
-    if (text.e) {
-        text.deallocate();
-    }
+    document_block->view_flags = document_write_block_view_flags(view, document_block->view_flags, flags);
 
     // TODO: Invalidate session's cursor's vertical anchors if they are on this block.
 
-    return block;
+    return layout_block;
 }
 
 hale_internal
@@ -679,13 +694,13 @@ _get_block_height(__DocumentLayout::Block *block)
 
 hale_internal
 inline r32
-_get_block_height_with_layout(DocumentLayout *layout, memi i)
+_get_block_height_with_layout(PagedMemory *stack, DocumentLayout *layout, memi i)
 {
-    return _get_block(layout, i)->layout.w_metrics.height;
+    return _get_block(stack, layout, i)->layout.w_metrics.height;
 }
 
 hale_internal memi
-_find_block_for_y(DocumentLayout *layout, memi from_i, r32 from_y, r32 target_y, r32 *o_y)
+_find_block_for_y(PagedMemory *stack, DocumentLayout *layout, memi from_i, r32 from_y, r32 target_y, r32 *o_y)
 {
     // TODO: Limit the distance, so if the block we're looking for it too far for limits of r32, it'll assert.
     memi i = from_i;
@@ -699,7 +714,7 @@ _find_block_for_y(DocumentLayout *layout, memi from_i, r32 from_y, r32 target_y,
     if (target_y > 0) {
         for (;;)
         {
-            block_h = _get_block_height_with_layout(layout, i);
+            block_h = _get_block_height_with_layout(stack, layout, i);
             if (block_y + block_h >= target_y)
             {
                 *o_y = - (target_y - block_y);
@@ -737,7 +752,7 @@ _find_block_for_y(DocumentLayout *layout, memi from_i, r32 from_y, r32 target_y,
 //                *o_y = hale_minimum(m_dv->options.padding.top(), - (target_y - block_y));
 //                return 0;
 //            }
-            block_h = _get_block_height_with_layout(layout, i);
+            block_h = _get_block_height_with_layout(stack, layout, i);
             block_y -= block_h;
         }
     }
@@ -746,7 +761,7 @@ _find_block_for_y(DocumentLayout *layout, memi from_i, r32 from_y, r32 target_y,
 }
 
 hale_internal void
-_reset_blocks(DocumentLayout *layout, memi i, r32 y)
+_reset_blocks(PagedMemory *stack, DocumentLayout *layout, memi i, r32 y)
 {
     memi block_count = vector_count(layout->impl.blocks);
 
@@ -756,7 +771,7 @@ _reset_blocks(DocumentLayout *layout, memi i, r32 y)
     layout->scroll_end = i;
 
     do {
-        block = _get_block(layout, i);
+        block = _get_block(stack, layout, i);
         block->y = y;
         // qDebug() << "Place" << i << block->y;
         y += _get_block_height(block);
@@ -773,11 +788,11 @@ _reset_blocks(DocumentLayout *layout, memi i, r32 y)
 
 hale_internal
 inline memi
-_find_block_for_y(DocumentLayout *layout, r32 delta, r32 *o_y)
+_find_block_for_y(PagedMemory *stack, DocumentLayout *layout, r32 delta, r32 *o_y)
 {
     memi i = layout->scroll_begin;
-    auto first = _get_block(layout, i);
-    return _find_block_for_y(layout, i, first->y, delta, o_y);
+    auto first = _get_block(stack, layout, i);
+    return _find_block_for_y(stack, layout, i, first->y, delta, o_y);
 }
 
 //
@@ -792,7 +807,7 @@ document_layout(TextProcessor *text_processor, DocumentView *session)
     *layout = {};
 
     layout->text_processor = text_processor;
-    layout->session = session;
+    layout->view = session;
     layout->scroll_begin = 0;
     layout->scroll_begin_y = 0;
     layout->impl.layout_invalid = 1;
@@ -806,14 +821,14 @@ document_layout(TextProcessor *text_processor, DocumentView *session)
 }
 
 void
-document_layout_scroll_by(DocumentLayout *layout, r32 dx, r32 dy)
+document_layout_scroll_by(PagedMemory *stack, DocumentLayout *layout, r32 dx, r32 dy)
 {
     hale_unused(dx);
 
     r32 y = 0.0;
-    memi i = _find_block_for_y(layout, dy, &y);
+    memi i = _find_block_for_y(stack, layout, dy, &y);
     // qDebug() << __FUNCTION__ << i << y;
-    _reset_blocks(layout, i, y);
+    _reset_blocks(stack, layout, i, y);
 }
 
 void
@@ -823,9 +838,8 @@ document_layout_set_viewport(DocumentLayout *layout, Rect<r32> viewport)
     layout->gutter_rect.max_x = 50.0f;
     layout->document_rect = viewport;
     layout->document_rect.min_x = layout->gutter_rect.max_x;
-    // TODO: Only invalidate the layout to be called lazily?
+    layout->view->document->view_flags = 1 << document_view_index(layout->view);
     layout->impl.layout_invalid = 1;
-    // document_layout_layout(layout);
 }
 
 void
@@ -842,8 +856,8 @@ document_layout_on_insert(DocumentLayout *layout, DocumentEdit *edit)
                       block);
     }
 
-    (*blocks)[edit->block_changed].flags &=
-            ~(__DocumentLayout::TextValid | __DocumentLayout::FormatValid);
+//    (*blocks)[edit->block_changed].flags &=
+//            ~(__DocumentLayout::TextValid | __DocumentLayout::FormatValid);
 
     layout->impl.layout_invalid = 1;
 }
@@ -855,14 +869,13 @@ document_layout_on_remove(DocumentLayout *layout, DocumentEdit *edit)
 
     if (edit->blocks_changed_count)
     {
-        __DocumentLayout::Block block = {};
         vector_remove(blocks,
                       edit->blocks_changed_at,
                       edit->blocks_changed_count);
     }
 
-    (*blocks)[edit->block_changed].flags &=
-            ~(__DocumentLayout::TextValid | __DocumentLayout::FormatValid);
+//    (*blocks)[edit->block_changed].flags &=
+//            ~(__DocumentLayout::TextValid | __DocumentLayout::FormatValid);
 
     layout->impl.layout_invalid = 1;
 }
@@ -870,20 +883,23 @@ document_layout_on_remove(DocumentLayout *layout, DocumentEdit *edit)
 void
 document_layout_on_format(DocumentLayout *layout, memi first, memi last)
 {
-    Vector<__DocumentLayout::Block> *blocks = &layout->impl.blocks;
-    for (memi i = first; i != last; ++i) {
-        (*blocks)[i].flags &= ~__DocumentLayout::FormatValid;
-    }
+//    Vector<__DocumentLayout::Block> *blocks = &layout->impl.blocks;
+//    for (memi i = first; i != last; ++i) {
+//        (*blocks)[i].flags &= ~__DocumentLayout::FormatValid;
+//    }
+
+    layout->impl.layout_invalid = 1;
 }
 
 void
-document_layout_layout(DocumentLayout *layout)
+document_layout_layout(PagedMemory *stack, DocumentLayout *layout)
 {
     if (!layout->impl.layout_invalid) {
         return;
     }
 
-    _reset_blocks(layout,
+    _reset_blocks(stack,
+                  layout,
                   layout->scroll_begin,
                   layout->scroll_begin_y);
 }
@@ -936,9 +952,9 @@ _draw_gutter(Window *window,
 }
 
 void
-document_layout_draw(Window *window, DocumentLayout *layout)
+document_layout_draw(PagedMemory *stack, Window *window, DocumentLayout *layout)
 {
-    document_layout_layout(layout);
+    document_layout_layout(stack, layout);
 
     Vector<ch16> buffer;
     vector_init(&buffer, 10);
@@ -950,7 +966,7 @@ document_layout_draw(Window *window, DocumentLayout *layout)
     {
         // TODO: Draw selections.
         // TODO: Maybe not use block->y directly, but use the document_rect to shift it?
-        block = _get_block(layout, i);
+        block = _get_block(stack, layout, i);
         // qDebug() << "Draw" << i << block->y;
         draw_text(window, layout->document_rect.min_x, block->y, &block->layout);
         _draw_gutter(window, layout, block, i, &buffer);
@@ -962,13 +978,13 @@ document_layout_draw(Window *window, DocumentLayout *layout)
 }
 
 void
-document_layout_draw_cursor(Window *window, DocumentLayout *layout, DocumentPosition position)
+document_layout_draw_cursor(PagedMemory *stack, Window *window, DocumentLayout *layout, DocumentPosition position)
 {
     // TODO: Implement the blinking timer on the window (or even the app),
     // so it's shared accross the application.
 
     // TODO: Check if the cursor is still within the viewport (maybe do that in caller?)
-    __DocumentLayout::Block *block = _get_block(layout, position.block);
+    __DocumentLayout::Block *block = _get_block(stack, layout, position.block);
 
     Rect<r32> rect;
 
@@ -1005,12 +1021,13 @@ document_layout_draw_cursor(Window *window, DocumentLayout *layout, DocumentPosi
 //       so it can do the job in batches.
 
 void
-document_layout_get_cursor(DocumentLayout *layout,
+document_layout_get_cursor(PagedMemory *stack,
+                           DocumentLayout *layout,
                            DocumentLayoutGetCursor which,
                            DocumentPosition *position,
                            r32 *anchor)
 {
-    Document *document = layout->session->document;
+    Document *document = layout->view->document;
 
     switch (which)
     {
@@ -1032,7 +1049,7 @@ document_layout_get_cursor(DocumentLayout *layout,
 
         DWRITE_HIT_TEST_METRICS metrics;
         FLOAT px, py;
-        __DocumentLayout::Block *block = _get_block(layout, position->block);
+        __DocumentLayout::Block *block = _get_block(stack, layout, position->block);
         HRESULT hr = block->layout.w_layout->HitTestTextPosition(position->position,
                                                                  (BOOL)TRUE,
                                                                  &px, &py,
@@ -1062,7 +1079,7 @@ document_layout_get_cursor(DocumentLayout *layout,
 
         position->position--;
 
-        __DocumentLayout::Block *block = _get_block(layout, position->block);
+        __DocumentLayout::Block *block = _get_block(stack, layout, position->block);
 
         DWRITE_HIT_TEST_METRICS metrics;
         FLOAT px, py;
@@ -1094,12 +1111,11 @@ draw_text(Window *window,
           r32 x, r32 y,
           TextLayout *layout)
 {
-    // TODO: Use IDWriteTextLayout::Draw?
     __Window *impl = &window->impl;
     D2D1_DRAW_TEXT_OPTIONS options = D2D1_DRAW_TEXT_OPTIONS_CLIP;
     impl->d_render_target->DrawTextLayout({(FLOAT)x, (FLOAT)y},
                                           layout->w_layout,
-                                          layout->base->_brush,
+                                          window->text_processor.impl._d_brushes[3],
                                           options);
 }
 
@@ -1116,6 +1132,7 @@ draw_text(Window *window,
     auto brush = window->impl.d_brush;
     brush->SetColor(_dcolor(format->color));
 
+    // format->_format->SetTextAlignment(alignment);
     window->impl.d_render_target->DrawText(
                 (WCHAR*)text,
                 text_length,

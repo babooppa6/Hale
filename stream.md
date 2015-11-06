@@ -4,23 +4,41 @@ This is my personal document I keep to collect ideas, links and music that happe
 
 # Stack
 
-* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-+ Remove text and delete/backspace commands.
-# Fix parser not re-parsing the lines (probably only the first line).
-* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-+ Undo
-	+ QDataStream replacement for Undo
+* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+# Remember the cursor positions in undo.
+	+ Can we do this within one undo stream?
+		+ We probably can call each of the views to store their undo into the document’s undo stream.
+      + We’ll however have to be careful with views that were brought to existence during the lifetime of the document.
+      + Such views will have to “copy” the undo of the view they were cloned from.
+      + **It’s just much better for a view to have it’s own sync’d undo stream, that is first cloned from a different view, as we won’t save any memory, and this way we’ll just keep it separated.**
++ **Multiple cursors**
+	+ Actually most of the work for multiple cursors will be done at this point, so why not finish it?
+	+ The most important part is to have support for this directly on the document itself, so the undo is saved in one go, and also the insert/remove is optimized for the use case, as oposed to calling single insert for every caret change.
+* ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+* Limit size of a block to something not too stupid, but that'll work nicely with the stack.
 + Saving file via a shortcut (Ctrl+S)
-----------------------------------------------------------------------------------------
+# Fix parser not notifying about format change in views.
+	- Currently, the views are not notified when parsing invalidates formats.
+		- The trouble is that it’s best to do it in batches as opposed to doing it per block. But a simple batch notification can be sent spaning parsed lines in `document_parse()`.
+----------------------------------------------------------------
++ Stack memory.
++ Vector removal.
+	+ This should actually happen automatically as the use of vector is going to be replaced by more optimized containers.
 
-+ Get rid of current implementation of memory_push, use it only for inserting more items (with optionally growing when the limit is reached).
-	+ For pushing more memory (without incrementing the count), implement memory_push_capacity(memory, capacity)
-+ Selections
++ **Selections**
+	+ Custom DirectWrite Renderer
+		* Background rectangles
+		* Get rid of IDWriteTextLayout and replace the formatting with our own.
+			- TextFormat should be a simple struct without dependency on the RenderTarget.
+				+ Window should create the platform representation on demand.
+		* Get rid of public API dependency on ID2D1Brush, only use it when drawing.
 + Command line
-+ Multiple cursors
 + Splits (at least to see two views on one document)
 + Command scopes & configuration
 
+# To learn
+
+- Struct/union alignment
 
 # Later
 
@@ -29,13 +47,6 @@ This is my personal document I keep to collect ideas, links and music that happe
 	- Make sure that the tokens are never overlapped. Although,... do we really need that?
 		+ Might even want to add a rule, that every new token should only be placed at position >= last_token.begin
 - Keep 0.5 multiplies of the base font's line height to keep the rhythm of the rendered text.
-- Selections
-	+ Custom DirectWrite Renderer
-		* Background rectangles
-		* Get rid of IDWriteTextLayout and replace the formatting with our own.
-			- TextFormat should be a simple struct without dependency on the RenderTarget.
-				+ Window should create the platform representation on demand.
-		* Get rid of public API dependency on ID2D1Brush, only use it when drawing.
 
 - Layout updates
 	+ Document > DocumentLayout
@@ -54,8 +65,9 @@ This is my personal document I keep to collect ideas, links and music that happe
 	+ Will need serialization format, use Qt's JSON for now.
 	+ Will need directory listing.
 	+ Can we skip this and leave it for later?
-- UndoStream
-	+ We can keep prototype version for a while.
+
+- FixedGapBuffer should use a padding at the end of the block to get rid of additional branches in the code.
+	+ The padding can contain some useful meta information for the block.
 
 # Name
 
@@ -81,6 +93,7 @@ Floax - Machinarium
 
 To buy:
 
+- Tycho - Dive {Full Album}
 - Ibb & Obb
 - Hotline Miami 2
 - Antichamber
@@ -101,7 +114,6 @@ d:\progs\ffmpeg\bin\ffmpeg -i "Hale (text editor) Document Rendering-v21604211.m
 
 # Questions
 
-- Going without standard libraries. (Platform46)
 - http://www.valvesoftware.com/publications/2007/SIGGRAPH2007_AlphaTestedMagnification.pdf
 
 # Timelapse List
@@ -113,15 +125,43 @@ d:\progs\ffmpeg\bin\ffmpeg -i "Hale (text editor) Document Rendering-v21604211.m
 ## ZX
 
 - https://www.youtube.com/watch?v=d8_m8gXjmmM (typhoon, zx)
-- 
+
+# Platforms
+
+- **Next**: text-mode (maybe first on Windows, then port it to POSIX/Linux?)
+- https://github.com/itfrombit/osx_handmade_minimal
+	- Check license on that. But hopefully can be used to learn.
+
+# Scripting
+- Use CINT for scripting. CINT is a C/C++ interpreter that can call to and be called from native code.
+
+you can go about it one of two ways:
+1) Set up "C" exports in Hale and write a configuration dll which uses them, in C/C++, compile using CL.
+2) Set up "C" exports in Hale and integrate CINT to call those functions, write the configuration in Hale, calling the interpreter.
+
+1 is less work and you'll need to set up the exports anyway if you also want to support configuration dlls written in someone's favourite language.
+
+CINT integration would make the command-line stuff work easier to do, but I'd go with 1 and build from there. Get configuration working as a compiled DLL, then integrate CINT and make configuration working dynamically using callbacks into Hale. Then reuse CINT for the command-line, which needs all the previous, and then see about getting CINT to output massages C++ to compile into a dll again for use case 1.
+ Handmade Archivist
+ you'll have clearly defined targets each milestone, with a marked increase in usefulness. And they all build on each other :)
+9m 4 seconds ago
+benefit of having CINT built-in, you always have a fallback 'compiler' for configuration on any platform. Lighter dependency than LLVM as well.
+ Handmade Archivist
+ and using the optional compile step, you can still get the speed boost once you're done prototyping your config.
+
+# Questions for Mr. Awesome et. al.
+
+- How can we generate and run ASM from memory at runtime?
+	- Useful for scope selector matching.
+	- We can use NASM that'll be in repo bin/
+	- NASM will produce .obj files for selector matching.
+	- .obj files will get linked into the application.
+- String interning in C/C++. Can we use built-in interning?
 
 # Notes
 
 - simple_print_float(float64 number, uint16 digits = 3, bool32 sign = True, bool32 sign_if_positive)
     + https://www.refheap.com/41a61e226d06278aa004ab332
-- Heap allocated stack work memory for procedures that require dynamic memory.
-	+ temp_memory = work_memory.push(size) -- allocates the memory in the heap
-	+ temp_memory = work_memory.pop() -- removes the top-allocated block.
 - Check if there's a donation for nightbot
 - TDB - optimized branch of mingw
 - No StdLib
@@ -159,3 +199,8 @@ d:\progs\ffmpeg\bin\ffmpeg -i "Hale (text editor) Document Rendering-v21604211.m
 <d7samurai> and you can make a rendertarget also be a shader resource (i.e. a texture the gpu can read from)
 <d7samurai> so it's possible to do a draw call that will "copy" the area where the caret is
 <d7samurai> to some other texture
+
+# Fonts
+
+- http://www.typonine.com/fonts/font-library/tesla-slab-monospace/
+- http://www.typonine.com/fonts/font-library/t9-sans-mono/

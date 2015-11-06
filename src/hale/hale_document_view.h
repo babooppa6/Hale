@@ -3,8 +3,10 @@
 
 #if HALE_INCLUDES
 #include "hale.h"
+#include "hale_memory.h"
 #include "hale_encoding.h"
 #include "hale_document_types.h"
+#include "hale_stack_memory.h"
 #endif
 
 namespace hale {
@@ -33,7 +35,7 @@ struct DocumentEdit;
 struct DocumentView
 {
     Document *document;
-    Vector<DocumentCursor> cursors;
+    Memory<DocumentCursor> cursors;
 
     // TODO: Make DocumentLayout into a platform implementation of DocumentView.
     DocumentLayout *layout;
@@ -56,19 +58,22 @@ enum RemoveCommand
     Remove_CharacterForward
 };
 
-void document_remove(DocumentEdit *edit, RemoveCommand command);
+void document_remove(HALE_STACK, DocumentEdit *edit, RemoveCommand command);
 
 void document_view_on_insert(DocumentView *view, DocumentEdit *edit);
 void document_view_on_remove(DocumentView *view, DocumentEdit *edit);
-void document_view_scroll_by(DocumentView *view, r32 dx, r32 dy);
+void document_view_scroll_by(HALE_STACK, DocumentView *view, r32 dx, r32 dy);
 void document_view_scroll_to(DocumentView *view, r32 x, r32 y);
 
-#define HALE_MOVE_CURSOR(name) void name(DocumentView *view, DocumentPosition *position, r32 *anchor)
+#define HALE_MOVE_CURSOR(name) void name(HALE_STACK,\
+                                         DocumentView *view,\
+                                         DocumentPosition *position,\
+                                         r32 *anchor)
 typedef HALE_MOVE_CURSOR(MoveCursor);
 HALE_MOVE_CURSOR(cursor_next_character);
 HALE_MOVE_CURSOR(cursor_previous_character);
 
-void document_view_move_cursor(DocumentView *view, MoveCursor move_cursor_function);
+void document_view_move_cursor(HALE_STACK, DocumentView *view, MoveCursor move_cursor_function);
 
 }
 

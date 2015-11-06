@@ -17,7 +17,7 @@ _copy_stack(Memory<ParserStackItem> *destination, Memory<ParserStackItem> *sourc
 {
     destination->count = 0;
     destination->push(source->count, 0);
-    memory_copy(destination->e, source->e, source->count);
+    memory_copy(destination->ptr, source->ptr, source->count);
 }
 
 void
@@ -90,17 +90,19 @@ document_parse(Document *document, r64 max_time)
     while(head != vector_count(document->blocks))
     {
         block = &document->blocks[head];
-        if (block->flags & Document::Block::F_TextChanged ||
+        if ((block->flags & DocumentBlockFlags_TextValid) == 0 ||
             !equal(&block->stack_begin, &document->parser_work_stack))
         {
             length = document_block_length(document, head);
-            text.reallocate_if_more(length);
+            if (length > text.capacity()) {
+                text.reallocate(length);
+            }
             text.count = length;
 
             document_text(document,
                           document_block_begin(document, head),
                           document_block_length(document, head),
-                          text.e,
+                          text.ptr,
                           text.count);
 
             if (head != 0) {
@@ -111,8 +113,8 @@ document_parse(Document *document, r64 max_time)
             // to the block's internal storage when the parsing of the block
             // has finished.
             document->parser.parse(&document->parser_state,
-                                   text.e,
-                                   text.e + text.count,
+                                   text.ptr,
+                                   text.ptr + text.count,
                                    &block->tokens,
                                    &document->parser_work_stack);
 
@@ -122,27 +124,27 @@ document_parse(Document *document, r64 max_time)
             // print_parser_tokens(&block->tokens, head);
             print_parser_stack(hale_ch("E"), &block->stack_end, head);
 
-            block->flags &= ~Document::Block::F_TextChanged;
-            block->flags |=  Document::Block::F_FormatsChanged;
+            block->flags |= DocumentBlockFlags_TextValid;
+            block->view_flags = 0;
             parsed++;
         }
 
         head++;
 
-#if 0
+#if 1
         if (((platform.read_time_counter() - time) > max_time)) {
             break;
         }
 #endif
     }
 
-    if (text.e) {
+    if (text.ptr) {
         text.deallocate();
     }
 
-    for (memi i = 0; i < document->views_count; ++i) {
-        document_layout_on_format(document->views[i].layout, document->_parser_head, head);
-    }
+//    for (memi i = 0; i < document->views_count; ++i) {
+//        document_layout_on_format(document->views[i].layout, document->_parser_head, head);
+//    }
 
     document->_parser_head = head;
 
@@ -152,27 +154,27 @@ document_parse(Document *document, r64 max_time)
 void
 print_parser_stack(const ch *name, Memory<ParserStackItem> *stack, memi block_index)
 {
-    Print print;
-    print << "Stack" << name << block_index << ":";
-    for (memi i = 0; i != stack->count; ++i) {
-        print << "[" << stack->e[i].token_id << "]";
-//              <<   "ix:" << stack->e[i].token_ix
-//              << "\n";
-    }
+//    Print print;
+//    print << "Stack" << name << block_index << ":";
+//    for (memi i = 0; i != stack->count; ++i) {
+//        print << "[" << stack->e[i].token_id << "]";
+////              <<   "ix:" << stack->e[i].token_ix
+////              << "\n";
+//    }
 }
 
 void
 print_parser_tokens(Memory<Token> *tokens, memi block_index)
 {
-    Print print;
-    print << "Tokens [" << block_index << "]";
-    for (memi i = 0; i != tokens->count; ++i) {
-        Token *token = &tokens->e[i];
-        print << token->id << "<"
-              << token->begin << "-"
-              << token->end << ">"
-              ;
-    }
+//    Print print;
+//    print << "Tokens [" << block_index << "]";
+//    for (memi i = 0; i != tokens->count; ++i) {
+//        Token *token = &tokens->e[i];
+//        print << token->id << "<"
+//              << token->begin << "-"
+//              << token->end << ">"
+//              ;
+//    }
 }
 
 

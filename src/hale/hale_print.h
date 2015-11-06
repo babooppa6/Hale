@@ -67,14 +67,110 @@ print(const ch *b, memi count)
 inline void
 print(const Memory<ch> &memory)
 {
-    hale_assert_input(memory.e);
-    platform.debug_print(memory.e, memory.count);
+    hale_assert_input(memory.ptr);
+    platform.debug_print(memory.ptr, memory.count);
 }
 
 //
 //
 //
 
+// TODO: Support for stack memory.
+
+template<typename M>
+struct StringSink
+{
+    M *memory;
+
+    enum {
+        Flag_AddSpaces  = 0x01,
+        Flag_AddNewLine = 0x02,
+        Flag_AddZero    = 0x04,
+
+        Flags_All = Flag_AddSpaces | Flag_AddNewLine | Flag_AddZero,
+    };
+    u32 flags;
+
+    StringSink(M *memory, u32 flags = Flags_All) :
+        memory(memory),
+        flags(flags)
+    {}
+
+    ~StringSink()
+    {
+        if (flags & Flag_AddNewLine) {
+            ch *nl = memory->push(1, 0);
+            *(nl) = '\n';
+        }
+
+        if (flags & Flag_AddZero) {
+            ch *nl = memory->push(1, 0);
+            *(nl) = 0;
+        }
+    }
+
+    inline ch *
+    push(memi count) {
+        ch *sp;
+        if (count) {
+            if (flags & Flag_AddSpaces) {
+                sp = memory->push(count + 1, 0);
+                *(sp + count) = ' ';
+            } else {
+                sp = memory->push(count, 0);
+            }
+        } else {
+            sp = memory->push(0, 0);
+        }
+        return sp;
+    }
+
+    inline ch *
+    push_capacity(memi capacity) {
+        return memory->push_capacity(capacity);
+    }
+
+    template<typename T>
+    inline StringSink &
+    operator <<(T value) {
+        return hale::sink<StringSink>(*this, value);
+    }
+};
+
+
+template<typename M>
+inline void
+print(M *memory)
+{
+    platform.debug_print(memory->ptr, memory->count);
+}
+
+template<typename M>
+inline void
+print(const StringSink<M> &sink)
+{
+    print(sink.memory);
+}
+
+struct PrintSink
+{
+    Memory<ch> memory;
+    StringSink<Memory<ch>> sink;
+    PrintSink() : memory {}, sink(&memory) {}
+    ~PrintSink() {
+        print(sink);
+        memory.deallocate_safe();
+    }
+
+    template<typename T>
+    PrintSink &operator <<(T value) {
+        sink << value;
+        return *this;
+    }
+};
+
+
+#if 0
 struct Print
 {
     Memory<ch> *memory;
@@ -122,6 +218,7 @@ struct Print
         return hale::sink<Print>(*this, value);
     }
 };
+#endif
 
 } // namespace hale
 

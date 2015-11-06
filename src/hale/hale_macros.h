@@ -3,6 +3,23 @@
 
 namespace hale
 {
+
+//#define hale_widen2(x) L ## x
+//#define hale_widen(x) hale_widen2(x)
+//#define __WFILE__ hale_widen(__FILE__)
+//#define hale_tostring(x)  hale_stringify(x)
+//#define hale_towstring(x) hale_widen(hale_tostring(x))
+
+#define hale_stringify_(x) #x
+#define hale_stringify(x) hale_stringify_(x)
+
+#define hale_ch_(S) (L ## S)
+#define hale_ch_w(S) ((ch16*)S)
+#define hale_ch(S) hale_ch_w(hale_ch_(S))
+
+// hale_ch("hello")
+// hale_ch_w(hale_ch_("hello") hale_ch_(" world"))
+
 //
 //
 //
@@ -36,11 +53,13 @@ namespace hale
 // Panic
 //
 
-#define hale_panic_(message, file, line) *(int *)0 = 0
-#define hale_panic(message)  hale_panic_(message, __FILE__, __LINE__)
-#define hale_not_implemented hale_panic_("not implemented", __FILE__, __LINE__)
-#define hale_not_tested      {_CrtDbgBreak(); hale_panic_("not tested", __FILE__, __LINE__);}
-#define hale_not_reached     hale_panic_("not reached", __FILE__, __LINE__)
+void hale_panic_(const ch *message, const ch *description, const ch *function, const ch *file, s32 line);
+
+#define hale_panic(message)  hale_panic_(hale_ch(message), hale_ch(message), hale_ch(__FUNCTION__), hale_ch(__FILE__), __LINE__)
+
+#define hale_not_implemented hale_panic("not implemented")
+#define hale_not_tested      hale_panic("not tested")
+#define hale_not_reached     hale_panic("not reached")
 
 // TODO: Log and crash.
 #define hale_error(message)  hale_panic(message)
@@ -51,11 +70,20 @@ namespace hale
 //
 
 // General assert.
-#define hale_assert(expression)\
-    if(!(expression)) { hale_panic_("assert " #expression, __FILE__, __LINE__); }
+
+//#include <assert.h>
+//assert
+
+#define _hale_assert_message(expression, message)\
+    (void)( (!!(expression)) ||\
+        (hale_panic_(message, hale_ch(hale_stringify(expression)), hale_ch(__FUNCTION__), hale_ch(__FILE__), __LINE__), 0) )
+
 
 #define hale_assert_message(expression, message)\
-    if(!(expression)) { hale_panic_(message " (" #expression ")", __FILE__, __LINE__); }
+    _hale_assert_message(expression, hale_ch(message))
+
+#define hale_assert(expression)\
+    _hale_assert_message(expression, hale_ch("Assertion message"))
 
 // Assert for user input checking.
 #define hale_assert_input(expression)\
@@ -113,7 +141,13 @@ static_assert(
 #define hale_align_8(Value) ((Value + 7) & ~7)
 #define hale_align_16(Value) ((Value + 15) & ~15)
 
-#define hale_ch(S) ((ch16*)L##S)
+// TODO: Convert to inlines?
+
+#define hale_kilobytes(value) ((value)*1024LL)
+#define hale_megabytes(value) (hale_kilobytes(value)*1024LL)
+#define hale_gigabytes(value) (hale_megabytes(value)*1024LL)
+#define hale_terabytes(value) (hale_gigabytes(value)*1024LL)
+
 
 }
 

@@ -1,6 +1,8 @@
 #if HALE_INCLUDES
 #include "hale.h"
 #include "hale_os.h"
+#include "hale_print.h"
+#include "hale_stack_memory.h"
 #endif
 
 namespace hale {
@@ -11,40 +13,73 @@ win32_print_error(const char *context)
     LPVOID lpMsgBuf;
     DWORD dw = GetLastError();
 
-    FormatMessage(
+    FormatMessageA(
         FORMAT_MESSAGE_ALLOCATE_BUFFER |
         FORMAT_MESSAGE_FROM_SYSTEM,
         NULL,
         dw,
         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        (LPTSTR) &lpMsgBuf,
+        (LPSTR) &lpMsgBuf,
         0, NULL);
 
-    platform.debug_print_0_8((ch8*)context);
-    platform.debug_print_0_8((ch8*)" ");
-    platform.debug_print_0_16((ch16*)lpMsgBuf);
+//    platform.debug_print_0_8((ch8*)context);
+//    platform.debug_print_0_8((ch8*)" ");
+//    platform.debug_print_0_16((ch16*)lpMsgBuf);
 
 //	INO_LOG(_T("%s: %s\n"), caller_str, lpMsgBuf);
-    // ::MessageBox(NULL, (LPCWSTR)lpMsgBuf, _T("Win32 API Error Log"), MB_OK);
+    ::MessageBoxA(NULL, (LPCSTR)lpMsgBuf, "Win32 API Error Log", MB_OK);
 
     LocalFree(lpMsgBuf);
 }
 
-void *
-win32_reserve_memory(memi size)
+//
+//
+//
+
+HALE_PLATFORM_SHOW_ERROR(win32_show_error)
 {
-    void *memory = ::VirtualAlloc(0, size, MEM_RESERVE, 0);
-    hale_assert(memory);
-    return memory;
+    Memory<ch> string;
+    string = {};
+
+    StringSink<Memory<ch>>(&string, StringSink<Memory<ch>>::Flag_AddZero)
+            << message << "\n"
+            << description << "\n"
+			<< "Function:" << function << "\n"
+            << "File: " << file << "\n"
+            << "Line: " << line;
+
+    ::MessageBoxW(NULL, (LPCWSTR)string.ptr, (LPCWSTR)message, MB_OK);
 }
 
-void
-win32_commit_memory(void *memory, memi size)
+void hale_panic_(const ch *message, const ch *description, const ch *function, const ch *file, s32 line)
 {
-    void *m = ::VirtualAlloc(memory, size, MEM_COMMIT, PAGE_READWRITE);
-    hale_assert(m == memory);
-    hale_assert(m);
+    win32_show_error(message, description, function, file, line);
+#if HALE_DEBUG
+    _CrtDbgBreak();
+#else
+    *(int *)0 = 0;
+#endif
 }
+
+//
+//
+//
+
+//void *
+//win32_reserve_memory(memi size)
+//{
+//    void *memory = ::VirtualAlloc(0, size, MEM_RESERVE, 0);
+//    hale_assert(memory);
+//    return memory;
+//}
+
+//void
+//win32_commit_memory(void *memory, memi size)
+//{
+//    void *m = ::VirtualAlloc(memory, size, MEM_COMMIT, PAGE_READWRITE);
+//    hale_assert(m == memory);
+//    hale_assert(m);
+//}
 
 HALE_PLATFORM_ALLOCATE_PAGED_MEMORY(win32_allocate_paged_memory)
 {
@@ -90,6 +125,45 @@ HALE_PLATFORM_READ_TIME_COUNTER(win32_read_time_counter)
     s64 counter;
     QueryPerformanceCounter((LARGE_INTEGER*)&counter);
     return (r64)((r64)counter / (r64)win32_perf_counter_frequency); // *(1e3);
+}
+
+void memory_init(PagedMemory *memory, memi reserve, void *base)
+{
+    hale_assert(reserve != 0);
+    * memory = {};
+    memory->_reserved = hale_align_up_to_page_size(reserve);
+    memory->base = VirtualAlloc(base,
+                                memory->_reserved,
+                                MEM_RESERVE,
+                                PAGE_EXECUTE_READWRITE);
+    if (memory->base == 0) {
+        win32_print_error("VirtualAlloc");
+        hale_error("VirtualAlloc");
+    }
+}
+
+void *memory_push(PagedMemory *memory, memi size)
+{
+    hale_assert_message(memory->count + size <= memory->_reserved, "StackAllocator overflow.");
+
+    void *ret = ((u8*)memory->base) + memory->count;
+    memory->count += size;
+    if (memory->count > memory->capacity) {
+        memory->capacity = hale_align_up_to_page_size(memory->count);
+        LPVOID r = VirtualAlloc(memory->base, memory->capacity, MEM_COMMIT, PAGE_EXECUTE_READWRITE);
+        hale_assert(r == memory->base);
+		if (r == 0) {
+			win32_print_error("VirtualAlloc(MEM_COMMIT)");
+			hale_error("VirtualAlloc(MEM_COMMIT)");
+		}
+    }
+    return ret;
+}
+
+void *memory_pop(PagedMemory *memory, memi size)
+{
+    memory->capacity -= size;
+    return ((u8*)memory->base) + memory->capacity;
 }
 
 //
@@ -221,10 +295,10 @@ HALE_PLATFORM_DEBUG_PRINT_N_16(win32_debug_print_N_16)
 
     Memory<ch16> s = {};
     s.push(length + 1, 0);
-    memory_copy(s.e, string, length);
-    s.e[length] = 0;
+    memory_copy(s.ptr, string, length);
+    s.ptr[length] = 0;
 
-    OutputDebugStringW((LPCWSTR)s.e);
+    OutputDebugStringW((LPCWSTR)s.ptr);
 
     s.deallocate();
 }
@@ -237,10 +311,10 @@ HALE_PLATFORM_DEBUG_PRINT_N_8(win32_debug_print_N_8)
 
     Memory<ch8> s;
     s.allocate(length + 1);
-    memory_copy(s.e, string, length);
-    s.e[length] = 0;
+    memory_copy(s.ptr, string, length);
+    s.ptr[length] = 0;
 
-    OutputDebugStringA((LPCSTR)s.e);
+    OutputDebugStringA((LPCSTR)s.ptr);
 }
 
 HALE_PLATFORM_DEBUG_PRINT_0_16(win32_debug_print_0_16)
@@ -262,7 +336,7 @@ Platform::Platform()
     SYSTEM_INFO si;
     GetSystemInfo(&si);
     page_size = si.dwPageSize;
-    page_shift = log(page_size) / log(2);
+    page_shift = (memi)(log(page_size) / log(2));
     page_mask = si.dwPageSize - 1;
 
     allocate_paged_memory = win32_allocate_paged_memory;

@@ -364,9 +364,9 @@ itoa(I value, Ch *buffer) {
     template<typename SinkT> \
     inline SinkT &sink(SinkT &sink, ItoaT value) \
     { \
-        auto ptr = sink.push(0, BufSize); \
+        auto ptr = sink.push_capacity(BufSize); \
         auto end = itoa(value, ptr); \
-        sink.push(end-ptr, 0); \
+        sink.push(end-ptr); \
         return sink; \
     }
 

@@ -1,6 +1,8 @@
 #if HALE_INCLUDES
 #include "hale.h"
+#include "hale_key.h"
 #include "hale_ui.h"
+#include "hale_stack_memory.h"
 #endif
 
 #include <windowsx.h>
@@ -15,15 +17,17 @@
 
 namespace hale {
 
+hale_global PagedMemory __stack__;
+
 // Required functions to be implemented in hale_platform_win32_<...>.cpp.
 
-hale_internal b32  __app_init(App *app);
+hale_internal b32  __app_init(HALE_STACK, App *app);
 hale_internal void __os_app_release(App *app);
 
-hale_internal b32  __os_window_init(Window *window);
-hale_internal void __os_window_release(Window *window);
-hale_internal void __os_window_resize(Window *window, RECT *rc_client);
-hale_internal void __os_window_paint(Window *window);
+hale_internal b32  __os_window_init(HALE_STACK, Window *window);
+hale_internal void __os_window_release(HALE_STACK, Window *window);
+hale_internal void __os_window_resize(HALE_STACK, Window *window, RECT *rc_client);
+hale_internal void __os_window_paint(HALE_STACK, Window *window);
 
 }
 
@@ -35,17 +39,17 @@ hale_internal void __os_window_paint(Window *window);
 
 namespace hale {
 
-hale_internal uint8
+hale_internal u8
 _get_key_modifiers()
 {
-    uint8 modifiers = 0;
+    u8 modifiers = 0;
 
-    modifiers |= ((::GetKeyState(VK_CONTROL)	    & 0x80000000) != 0) ? KeyEvent::Ctrl : 0;
-    modifiers |= ((::GetKeyState(VK_SHIFT)  		& 0x80000000) != 0) ? KeyEvent::Shift : 0;
-    modifiers |= ((::GetKeyState(VK_LMENU)  		& 0x80000000) != 0) ? KeyEvent::Alt : 0;
-    modifiers |= ((::GetKeyState(VK_RMENU)  		& 0x80000000) != 0) ? KeyEvent::AltGr : 0;
-    modifiers |= ((::GetKeyState(VK_LWIN)   		& 0x80000000) != 0) ? KeyEvent::WinLeft : 0;
-    modifiers |= ((::GetKeyState(VK_RWIN)   		& 0x80000000) != 0) ? KeyEvent::WinRight : 0;
+    modifiers |= ((::GetKeyState(VK_CONTROL)	    & 0x80000000) != 0) ? (u8)KeyM_Ctrl : 0;
+    modifiers |= ((::GetKeyState(VK_SHIFT)  		& 0x80000000) != 0) ? (u8)KeyM_Shift : 0;
+    modifiers |= ((::GetKeyState(VK_LMENU)  		& 0x80000000) != 0) ? (u8)KeyM_Alt : 0;
+    modifiers |= ((::GetKeyState(VK_RMENU)  		& 0x80000000) != 0) ? (u8)KeyM_AltGr : 0;
+    modifiers |= ((::GetKeyState(VK_LWIN)   		& 0x80000000) != 0) ? (u8)KeyM_WinLeft : 0;
+    modifiers |= ((::GetKeyState(VK_RWIN)   		& 0x80000000) != 0) ? (u8)KeyM_WinRight : 0;
 
     return modifiers;
 }
@@ -62,10 +66,15 @@ struct WM_KEY_LPARAM
 };
 
 hale_internal b32
-_app_handle_key(Window *window, UINT message, WPARAM wparam, LPARAM lparam, LRESULT *lresult)
+_app_handle_key(PagedMemory *stack,
+                Window *window,
+                UINT message,
+                WPARAM wparam,
+                LPARAM lparam,
+                LRESULT *lresult)
 {
     KeyEvent e = {};
-    e.modifiers = _get_key_modifiers();
+    e.key.modifiers = _get_key_modifiers();
 
     // WM_KEY_LPARAM *klp = (WM_KEY_LPARAM *)msg->lParam;
 
@@ -74,12 +83,12 @@ _app_handle_key(Window *window, UINT message, WPARAM wparam, LPARAM lparam, LRES
         case WM_SYSKEYDOWN:
         case WM_KEYDOWN:
         {
-            e.type = KeyEvent::KeyDown;
-            e.vkey = (u32)wparam;
-            e.codepoint = 0;
+            e.type = KeyT_KeyDown;
+            hale_assert(wparam <= 0xFF);
+            e.key.key = (u8)wparam;
 
             *lresult = 0;
-            if (e.vkey == VK_F4 && e.modifiers & KeyEvent::Alt) {
+            if (e.key.key == VK_F4 && (e.key.modifiers & KeyM_Alt)) {
                 return 0;
             }
         }
@@ -88,9 +97,9 @@ _app_handle_key(Window *window, UINT message, WPARAM wparam, LPARAM lparam, LRES
         case WM_SYSKEYUP:
         case WM_KEYUP:
         {
-            e.type = KeyEvent::KeyUp;
-            e.vkey = (u32)wparam;
-            e.codepoint = 0;
+            e.type = KeyT_KeyUp;
+            hale_assert(wparam <= 0xFF);
+            e.key.key = (u8)wparam;
 
             *lresult = 0;
         }
@@ -98,18 +107,16 @@ _app_handle_key(Window *window, UINT message, WPARAM wparam, LPARAM lparam, LRES
 
         case WM_CHAR:
         {
-            e.type = KeyEvent::Text;
-            e.vkey = 0;
-            e.codepoint = (u32)wparam;
+            e.type = KeyT_Text;
+            e.key.codepoint = (u32)wparam;
             *lresult = 0;
         }
         break;
 
         case WM_UNICHAR:
         {
-            e.type = KeyEvent::Text;
-            e.vkey = 0;
-            e.codepoint = (u32)wparam;
+            e.type = KeyT_Text;
+            e.key.codepoint = (u32)wparam;
 
             *lresult = (wparam == UNICODE_NOCHAR);
         }
@@ -123,7 +130,7 @@ _app_handle_key(Window *window, UINT message, WPARAM wparam, LPARAM lparam, LRES
         break;
     }
 
-    app_on_key_event(window->app, window, e);
+    app_on_key_event(stack, window->app, window, e);
 
     return 1;
 }
@@ -136,12 +143,12 @@ _app_handle_key(Window *window, UINT message, WPARAM wparam, LPARAM lparam, LRES
 
 hale_internal LRESULT CALLBACK
 _window_proc(HWND handle,
-               UINT message,
-               WPARAM wparam,
-               LPARAM lparam)
+             UINT message,
+             WPARAM wparam,
+             LPARAM lparam)
 {
     Window *window = (Window*)GetPropA(handle, "hale_window");
-
+    HALE_STACK = &__stack__;
     LRESULT lresult;
 
     switch (message)
@@ -155,7 +162,7 @@ _window_proc(HWND handle,
     case WM_CHAR:
     case WM_UNICHAR:
     {
-        if (window && _app_handle_key(window, message, wparam, lparam, &lresult))
+        if (window && _app_handle_key(stack, window, message, wparam, lparam, &lresult))
         {
             return lresult;
         }
@@ -170,7 +177,7 @@ _window_proc(HWND handle,
             window->impl.wheel_delta += GET_WHEEL_DELTA_WPARAM(wparam);
             r32 angle = (r32)window->impl.wheel_delta / 120;
             window->impl.wheel_delta = window->impl.wheel_delta % 120;
-            window_scroll_by(window, x, y, 0, -angle);
+            window_scroll_by(stack, window, x, y, 0, -angle);
             return 0;
         }
     } break;
@@ -191,7 +198,7 @@ _window_proc(HWND handle,
         {
             RECT rc; // = {0, 0, LOWORD(lparam), HIWORD(lparam)};
             GetClientRect(handle, &rc);
-            __os_window_resize(window, &rc);
+            __os_window_resize(stack, window, &rc);
             // Pass through to DefWindowProc
         }
     } break;
@@ -199,7 +206,7 @@ _window_proc(HWND handle,
     case WM_PAINT: {
         if (window)
         {
-            __os_window_paint(window);
+            __os_window_paint(stack, window);
             return 0;
         }
     } break;
@@ -217,7 +224,7 @@ _window_proc(HWND handle,
 }
 
 hale_internal b32
-_window_init(App *app, Window *window, WNDCLASSA *window_class)
+_window_init(PagedMemory *stack, App *app, Window *window, WNDCLASSA *window_class)
 {
     *window = {};
 
@@ -249,7 +256,7 @@ _window_init(App *app, Window *window, WNDCLASSA *window_class)
         return 0;
     }
 
-    __os_window_init(window);
+    __os_window_init(stack, window);
 
     // TODO: DWM
 
@@ -257,7 +264,7 @@ _window_init(App *app, Window *window, WNDCLASSA *window_class)
 
     // Call to Hale.
 
-    b32 r = window_init(window);
+    b32 r = window_init(stack, window);
 
     return r;
 }
@@ -286,7 +293,7 @@ window_get_animation(Window *window, void *key)
     Animation *f;
     for (memi i = 0; i != window->animations.count; i++)
     {
-        f = &window->animations.e[i];
+        f = &window->animations.ptr[i];
         if (f->_key == key) {
             return f;
         }
@@ -298,7 +305,7 @@ Animation *
 window_add_animation(Window *window, void *key, Animation *animation)
 {
     hale_assert_debug(window_get_animation(window, key) == 0);
-    if (window->animations.count != hale_array_count(window->animations.e))
+    if (window->animations.count != hale_array_count(window->animations.ptr))
     {
         auto a = memory_insert(&window->animations, window->animations.count, 1);
         *a = *animation;
@@ -318,7 +325,7 @@ window_add_animation(Window *window, void *key, Animation *animation)
 }
 
 hale_internal void
-_run_animations(App *app, r32 dt)
+_run_animations(HALE_STACK, App *app, r32 dt)
 {
     Window *window;
     for (memi iw = 0; iw != app->windows_count; iw++)
@@ -329,9 +336,9 @@ _run_animations(App *app, r32 dt)
             Animation *a;
             for (memi i = 0; i != window->animations.count; i++)
             {
-                a = &window->animations.e[i];
+                a = &window->animations.ptr[i];
                 a->elapsed += dt;
-                a->animate(clamp01(a->elapsed / a->duration), a);
+                a->animate(stack, clamp01(a->elapsed / a->duration), a);
                 if (a->elapsed > a->duration) {
                     memory_remove_ordered(&window->animations, i, 1);
                     --i;
@@ -339,7 +346,7 @@ _run_animations(App *app, r32 dt)
                 }
             }
             // TODO: the animation should invalidate the portion of the window, and here we'll just do what WM_PAINT would.
-            __os_window_paint(window);
+            __os_window_paint(stack, window);
         }
     }
 }
@@ -366,7 +373,7 @@ void
 app_resume_parsing(App *app)
 {
     if (app->impl.parsing_timer == 0) {
-        Print() << "Starting parsing timer.";
+        // Print() << "Starting parsing timer.";
         app->impl.parsing_timer = SetTimer(0, 0, 50, 0);
         hale_assert_message(app->impl.parsing_timer != 0, "SetTimer");
     }
@@ -376,7 +383,7 @@ void
 app_suspend_parsing(App *app)
 {
     if (app->impl.parsing_timer) {
-        Print() << "Killing parsing timer.";
+        // Print() << "Killing parsing timer.";
         KillTimer(0, app->impl.parsing_timer);
         app->impl.parsing_timer = 0;
     }
@@ -385,8 +392,24 @@ app_suspend_parsing(App *app)
 int
 main(HINSTANCE instance, s32 argc, ch16 *argv[])
 {
-    App *app = (App*)malloc(sizeof(App));
+    __stack__ = {};
 
+#if HALE_DEBUG
+    memory_init(&__stack__, hale_align_up_to_page_size(hale_gigabytes(1)), (void*)hale_terabytes(2));
+#else
+    memory_init(&__stack__, hale_align_up_to_page_size(hale_gigabytes(1)), 0);
+#endif
+
+	if (__stack__.base == 0) {
+		win32_print_error("VirtualAlloc");
+        hale_error("VirtualAlloc");
+	}
+
+    StackMemory<App> app_(&__stack__, 1);
+
+    // App *app = (App*)malloc(sizeof(App));
+
+    App *app = app_.ptr();
     *app = {};
     app->argc = argc;
     app->argv = argv;
@@ -394,7 +417,7 @@ main(HINSTANCE instance, s32 argc, ch16 *argv[])
     __App *app_impl = &app->impl;
     app_impl->instance = instance;
 
-    __app_init(app);
+    __app_init(&__stack__, app);
 
     //
     // Main window class.
@@ -410,7 +433,7 @@ main(HINSTANCE instance, s32 argc, ch16 *argv[])
 
     hale_assert(RegisterClassA(&window_class) != 0);
 
-    hale_assert(_window_init(app, &app->windows[0], &window_class));
+    hale_assert(_window_init(&__stack__, app, &app->windows[0], &window_class));
     app->windows_count++;
 
     // TODO: Initialize application.
@@ -455,7 +478,7 @@ main(HINSTANCE instance, s32 argc, ch16 *argv[])
             r32 dt = _time - app->impl.animations_time;
             app->impl.animations_time = _time;
 
-            _run_animations(app, dt);
+            _run_animations(&__stack__, app, dt);
 
             // Pom.. pom..
             if (dt < 0.016f) {
@@ -477,6 +500,8 @@ main(HINSTANCE instance, s32 argc, ch16 *argv[])
 //    }
 
     __os_app_release(app);
+
+    // Print() << "StackAllocator" << ((r64)__stack__.capacity / (1024*1024)) << "MB";
 
     return exit_code;
 }

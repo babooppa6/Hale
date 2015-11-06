@@ -18,7 +18,6 @@
 #include "hale_string.h"
 #include "hale_print.h"
 #include "hale.h"
-#include "hale_test.h"
 #include "hale_gap_buffer.h"
 #include "hale_fixed_gap_buffer.h"
 #include "hale_document_types.h"

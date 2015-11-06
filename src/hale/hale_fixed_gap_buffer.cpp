@@ -609,7 +609,7 @@ insert_non_crit_branch(FixedGapArena *arena,
 
     if (p0) {
         if (sx) {
-            hale_assert_requirement(n != 0)
+            hale_assert_requirement(n != 0);
             buf_move_suffix(it0, offset, it0 + n); // same as `it1 + n - 1`
         }
         buf_insert(it0, offset, data, p0);

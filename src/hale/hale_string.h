@@ -72,7 +72,7 @@ sink(SinkT &s, const ch8 *value)
 {
     hale_assert_input(value);
     memi count = string_length(value);
-    ch16 *ptr = s.push(count, 0);
+    ch16 *ptr = s.push(count);
     for (memi i = 0; i != count; i++) {
         *ptr++ = *value++;
     }
@@ -91,7 +91,7 @@ inline SinkT &sink(SinkT &s, const ch16 *value)
 {
     hale_assert_input(value);
     memi count = string_length(value);
-    ch16 *ptr = s.push(count, 0);
+    ch16 *ptr = s.push(count);
     memory_copy((ch16*)ptr, (ch16*)value, count);
     return s;
 }

@@ -6,19 +6,21 @@
 namespace hale {
 
 void
-document_view_init(DocumentView *session, Document *document, TextProcessor *text_processor)
+document_view_init(DocumentView *view, Document *document, TextProcessor *text_processor)
 {
-    session->document = document;
-    session->layout = document_layout(text_processor, session);
+    *view = {};
+    view->document = document;
+    view->layout = document_layout(text_processor, view);
 
-    vector_init(&session->cursors, 1);
-    vector_push<DocumentCursor>(&session->cursors, {});
+    view->cursors = {};
+    auto cursor = view->cursors.push(1, 16);
+    *cursor = {};
 }
 
 void
 document_view_release(DocumentView *view)
 {
-    vector_release(&view->cursors);
+    view->cursors.deallocate_safe();
 }
 
 DocumentView *
@@ -79,7 +81,7 @@ document_insert(DocumentEdit *edit, ch16 *text, memi text_length)
 //
 
 void
-document_remove(DocumentEdit *edit, RemoveCommand remove)
+document_remove(HALE_STACK, DocumentEdit *edit, RemoveCommand remove)
 {
     hale_assert_input(edit->view);
     hale_assert_input(edit->document);
@@ -95,7 +97,7 @@ document_remove(DocumentEdit *edit, RemoveCommand remove)
         hale_assert(cursor->range.first == cursor->range.second);
         position = cursor->range.first;
         anchor = cursor->anchor;
-        cursor_previous_character(edit->view, &position, &anchor);
+        cursor_previous_character(stack, edit->view, &position, &anchor);
         document_abner(edit, position, cursor->range.first);
     } break;
     }
@@ -120,9 +122,9 @@ document_view_on_remove(DocumentView *view, DocumentEdit *edit)
 }
 
 void
-document_view_scroll_by(DocumentView *view, r32 dx, r32 dy)
+document_view_scroll_by(HALE_STACK, DocumentView *view, r32 dx, r32 dy)
 {
-    document_layout_scroll_by(view->layout, dx, dy);
+    document_layout_scroll_by(stack, view->layout, dx, dy);
 }
 
 void
@@ -136,26 +138,28 @@ document_view_scroll_to(DocumentView *view, r32 x, r32 y)
 //
 
 void
-document_view_move_cursor(DocumentView *view, MoveCursor move_cursor_function)
+document_view_move_cursor(HALE_STACK, DocumentView *view, MoveCursor move_cursor_function)
 {
     auto cursor = &view->cursors[0];
     DocumentPosition position = cursor->range.first;
     r32 anchor = 0;
-    move_cursor_function(view, &position, &anchor);
+    move_cursor_function(stack, view, &position, &anchor);
     cursor->range.first = cursor->range.second = position;
     cursor->anchor = anchor;
 }
 
 HALE_MOVE_CURSOR(cursor_next_character)
 {
-    document_layout_get_cursor(view->layout,
+    document_layout_get_cursor(stack,
+                               view->layout,
                                DocumentLayoutGetCursor::NextCharacter,
                                position, anchor);
 }
 
 HALE_MOVE_CURSOR(cursor_previous_character)
 {
-    document_layout_get_cursor(view->layout,
+    document_layout_get_cursor(stack,
+                               view->layout,
                                DocumentLayoutGetCursor::PreviousCharacter,
                                position, anchor);
 }

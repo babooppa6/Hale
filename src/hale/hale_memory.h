@@ -52,13 +52,34 @@ memory_insert(T *e, memi e_count, T *at, memi count)
 
 template<typename M>
 inline typename M::T *
+memory_grow(M *memory, memi count, memi capacity)
+{
+    if ((memory->count + count) > memory->capacity()) {
+        memory->reallocate(memory->count + count + capacity);
+    }
+    return memory->ptr;
+}
+
+// TODO: Merge with memory_grow?
+template<typename M>
+inline typename M::T *
+memory_push_capacity(M *memory, memi capacity)
+{
+    if ((memory->count + capacity) > memory->capacity()) {
+        memory->reallocate(memory->count + capacity);
+    }
+    return memory->ptr + memory->count;
+}
+
+template<typename M>
+inline typename M::T *
 memory_insert(M *memory, memi offset, memi count, memi capacity = 0)
 {
     hale_assert_input(count);
     // TODO: Do custom "insert" adjustment, as we're doing two memory moves here (one for allocation, one for insert)
-    memory->reallocate_if_more(memory->count + maximum(count, capacity));
+    memory_grow(memory, memory->count, capacity);
     memory->count += count;
-    return memory_insert(&memory->e[0], memory->count, &memory->e[0] + offset, count);
+    return memory_insert(memory->ptr, memory->count, memory->ptr + offset, count);
 }
 
 template<typename M>
@@ -71,32 +92,24 @@ memory_remove_ordered(M *memory, memi offset, memi count)
     // .....xxx...~~
     //      vvv^^^
     // ........~~~~~
-    M::T *e = memory->e + offset;
-    memory_move(e,
-                e + count,
+    M::T *ptr = memory->ptr + offset;
+    memory_move(ptr,
+                ptr + count,
                 memory->count - (offset + count));
 
     memory->count -= count;
-    return e;
+    return ptr;
 }
-
-// TODO: This is just stupid, I need memory_push for fucking with count, and other memory_push_capacity for just allocating at the end without fucking with count.
-//       For now I'm going with more complex way of doing this, but that actually should do what is expected it to do.
 
 template<typename M>
 inline typename M::T *
 memory_push(M *memory, memi count, memi capacity)
 {
-    hale_assert_input(count + capacity);
+    hale_assert_input(count);
 
-    M::T *p;
-    capacity = maximum(count, capacity);
-    if ((memory->count + capacity) <= memory->capacity()) {
-        p = memory->e + memory->count;
-    } else {
-        p = memory->reallocate_any(memory->capacity() + capacity) + memory->count;
-    }
+    M::T *p = memory_grow(memory, count, capacity);
 
+    p += memory->count;
     memory->count += count;
     return p;
 }
@@ -107,7 +120,7 @@ memory_pop(M *memory)
 {
     hale_assert_input(memory->count != 0);
     memory->count--;
-    return &memory->e[memory->count];
+    return memory->ptr + memory->count;
 }
 
 //
@@ -133,43 +146,37 @@ struct Memory
 
     typedef _T T;
 
-    _T *e;
+    _T *ptr;
     memi count;
     memi _capacity;
 
     inline _T* allocate(memi capacity) {
-        return e = (_T*)malloc(capacity * sizeof(_T));
+        _capacity += capacity;
+        return ptr = (_T*)malloc(capacity * sizeof(_T));
     }
 
     inline _T* allocate_safe(memi capacity) {
-        hale_assert_debug(e == NULL);
-        return e = (_T*)malloc(capacity * sizeof(_T));
+        _capacity += capacity;
+        hale_assert_debug(ptr == NULL);
+        return ptr = (_T*)malloc(capacity * sizeof(_T));
     }
 
     inline void deallocate() {
-        hale_assert_debug(e);
-        free(e);
+        hale_assert_debug(ptr);
+        free(ptr);
     }
 
     inline void deallocate_safe() {
-        if (e) {
+        if (ptr) {
             deallocate();
             *this = {};
         }
     }
 
-    inline _T* reallocate_any(memi new_capacity) {
-        e = (_T*)realloc(e, new_capacity * sizeof(_T));
-        hale_assert(e);
+    inline void reallocate(memi new_capacity) {
+        ptr = (_T*)realloc(ptr, new_capacity * sizeof(_T));
+        hale_assert(ptr);
         _capacity = new_capacity;
-        return e;
-    }
-
-    inline _T* reallocate_if_more(memi new_capacity) {
-        if (new_capacity > _capacity) {
-            return reallocate_any(new_capacity);
-        }
-        return e;
     }
 
     inline memi capacity() {
@@ -184,12 +191,21 @@ struct Memory
         return memory_remove_ordered(this, offset, count);
     }
 
+    inline T* push_capacity(memi capacity) {
+        return memory_push_capacity(this, capacity);
+    }
+
     inline T* push(memi count, memi capacity) {
         return memory_push(this, count, capacity);
     }
 
     inline T* pop() {
         return memory_pop(this);
+    }
+
+    T &operator [](size_t index) {
+        hale_assert(index < count);
+        return ptr[index];
     }
 };
 
@@ -198,14 +214,13 @@ struct StaticMemory
 {
     typedef _T T;
 
-    _T e[Size];
+    _T ptr[Size];
     memi count;
 
     // TODO: reallocate_any
 
-    inline _T* reallocate_if_more(memi new_capacity) {
+    inline void reallocate(memi new_capacity) {
         hale_assert(new_capacity <= Size);
-        return &e[0];
     }
 
     inline memi capacity() {
@@ -233,8 +248,8 @@ template<typename T>
 inline b32
 equal(Memory<T> *a, Memory<T> *b)
 {
-    return equal<T>(a->e, a->e + a->count,
-                    b->e, b->e + b->count);
+    return equal<T>(a->ptr, a->ptr + a->count,
+                    b->ptr, b->ptr + b->count);
 }
 
 } // namespace hale

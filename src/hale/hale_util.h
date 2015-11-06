@@ -3,6 +3,13 @@
 
 namespace hale {
 
+inline u32
+safe_truncate_u64(u64 val)
+{
+    hale_assert(val <= 0xFFFFFFFF);
+    return (u32)val;
+}
+
 // TODO: Optimize `equal` (SIMD, loop unwind)
 
 template<typename T>

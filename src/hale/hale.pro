@@ -46,11 +46,7 @@ win32 {
 
 
 SOURCES += \
-    stu.cpp \
-    hale_itoa.cpp \
-    test_parser_c.cpp \
-    test.cpp \
-    hale_document_parser.cpp
+    stu.cpp
 
 OTHER_FILES += \
     Notes.txt \
@@ -114,7 +110,16 @@ OTHER_FILES += \
     _hale_encoding_hale.cpp \
     _hale_encoding_utf16.cpp \
     _hale_encoding_utf8.cpp \
-    hale_os.cpp
+    hale_os.cpp \
+    hale_itoa.cpp \
+    test_parser_c.cpp \
+    test.cpp \
+    hale_document_parser.cpp \
+    hale_undo.cpp \
+    hale_configuration.cpp \
+    hale_configure.cpp \
+    hale_scope.cpp
+    hale_set.cpp
 
 #
 # Oniguruma
@@ -148,4 +153,10 @@ OTHER_FILES += \
 HEADERS += \
     hale_itoa.h \
     hale_ftoa.h \
-    test.h
+    test.h \
+    hale_undo.h \
+    hale_stack_memory.h \
+    hale_memory2.h \
+    hale_configuration.h \
+    hale_key.h \
+    hale_set.h

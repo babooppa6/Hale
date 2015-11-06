@@ -2,12 +2,6 @@
 
 Prototype turning into an open source text editor.
 
-## 11 Days Marathon
-
-From *Thursday; October 16, 2015* to *Monday; October 26, 2015* on [Twitch](http://www.twitch.tv/martincohen).
-
-I plan to spend these eleven days on finishing the alpha release.
-
 ## Links
 
 - [Code on **GitHub.**](https://github.com/martincohen/Hale)
@@ -15,12 +9,9 @@ I plan to spend these eleven days on finishing the alpha release.
 - [Streaming on **Twitch.**](http://twitch.com/martincohen)
 - [Support on **Patreon.**](http://patreon.com/martincohen)
 
-## Codebase
+## State
 
-Codebase currently actually contains two versions of Hale.
-
-- **prototype** -- done in OOP and Qt. I found Qt to be particularly great for quick prototyping of the features and the internal architecture. However, GPL, mandatory OOP and a ton of build dependencies makes it inappropriate for my goals.
-- **handmade** -- done without OOP, still has some dependencies (for example `hale::vector` internally uses `std::vector`), but the goal is to get rid of them.
+Hale is made all from scratch, only utilizing necessary platform libraries to do it's job. 
 
 ## Notation
 
